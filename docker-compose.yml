@@ -1,0 +1,76 @@
+services:
+  traefik:
+    image: traefik:v3.2
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+    networks:
+      - web
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: todo-app
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/todoapp?schema=public
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-me-in-production}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost}
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.todo-app.rule=Host(`${APP_DOMAIN:-localhost}`)"
+      - "traefik.http.routers.todo-app.entrypoints=web"
+      - "traefik.http.services.todo-app.loadbalancer.server.port=3000"
+      # HTTPS (uncomment for production with SSL)
+      # - "traefik.http.routers.todo-app-secure.rule=Host(`${APP_DOMAIN:-localhost}`)"
+      # - "traefik.http.routers.todo-app-secure.entrypoints=websecure"
+      # - "traefik.http.routers.todo-app-secure.tls.certresolver=letsencrypt"
+    networks:
+      - web
+      - internal
+
+  db:
+    image: postgres:16-alpine
+    container_name: todo-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=todoapp
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+    ports:
+      - "5432:5432"  # Expose for local development; remove in production
+
+volumes:
+  postgres_data:
+
+networks:
+  web:
+    driver: bridge
+  internal:
+    driver: bridge
