@@ -26,6 +26,7 @@ interface TaskListProps {
   onDelete: (id: string) => void
   onStatusChange: (id: string, status: Task["status"]) => void
   onReorder: (tasks: Task[]) => void
+  onReminder?: (task: Task) => void
 }
 
 export function TaskList({
@@ -35,6 +36,7 @@ export function TaskList({
   onDelete,
   onStatusChange,
   onReorder,
+  onReminder,
 }: TaskListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -82,6 +84,7 @@ export function TaskList({
               onEdit={onEdit}
               onDelete={onDelete}
               onStatusChange={onStatusChange}
+              onReminder={onReminder}
             />
           ))}
         </div>

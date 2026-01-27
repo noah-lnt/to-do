@@ -11,6 +11,7 @@ import {
   Pencil,
   Trash2,
   ArrowRight,
+  Bell,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -35,6 +36,7 @@ interface TaskCardProps {
   onEdit: (task: Task) => void
   onDelete: (id: string) => void
   onStatusChange: (id: string, status: Task["status"]) => void
+  onReminder?: (task: Task) => void
 }
 
 function formatDueDate(dateStr: string) {
@@ -44,7 +46,7 @@ function formatDueDate(dateStr: string) {
   return format(date, "d MMM yyyy", { locale: fr })
 }
 
-export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: TaskCardProps) {
+export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange, onReminder }: TaskCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const isDone = task.status === "DONE"
   const isOverdue = task.dueDate && isPast(new Date(task.dueDate)) && !isDone
@@ -170,6 +172,12 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: T
               <Pencil className="mr-2 h-4 w-4" />
               Modifier
             </DropdownMenuItem>
+            {onReminder && task.status !== "DONE" && (
+              <DropdownMenuItem onClick={() => onReminder(task)}>
+                <Bell className="mr-2 h-4 w-4" />
+                Rappel
+              </DropdownMenuItem>
+            )}
             {task.status === "TODO" && (
               <DropdownMenuItem onClick={() => onStatusChange(task.id, "IN_PROGRESS")}>
                 <ArrowRight className="mr-2 h-4 w-4" />

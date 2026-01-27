@@ -7,12 +7,15 @@ import { Sidebar } from "@/components/sidebar"
 import { StatsCards } from "@/components/stats-cards"
 import { TaskList } from "@/components/task-list"
 import { TaskDialog } from "@/components/task-dialog"
+import { ReminderDialog } from "@/components/reminder-dialog"
+import { EmailVerificationBanner } from "@/components/email-verification-banner"
 import { QuickAddTask } from "@/components/quick-add-task"
 import { SearchAndFilters } from "@/components/search-and-filters"
 import { useAuth } from "@/components/auth-provider"
 import { useTasks } from "@/hooks/use-tasks"
 import { useCategories } from "@/hooks/use-categories"
 import { useStats } from "@/hooks/use-stats"
+import { useNotifications } from "@/hooks/use-notifications"
 import type { Task, FilterStatus, FilterPriority, SortBy, SortOrder } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -56,9 +59,14 @@ export function Dashboard() {
   const { categories, createCategory, deleteCategory, fetchCategories } = useCategories()
   const { stats, fetchStats } = useStats()
 
+  // Notifications
+  useNotifications(true)
+
   // Dialog state
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
+  const [reminderTask, setReminderTask] = useState<Task | null>(null)
 
   // Mobile sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -108,6 +116,19 @@ export function Dashboard() {
       categoryId: categoryId || undefined,
     } as Partial<Task>)
     await refreshData()
+  }
+
+  const handleCreateReminder = async (data: { taskId: string; remindAt: string; type: string }) => {
+    await fetch("/api/reminders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+  }
+
+  const openReminderDialog = (task: Task) => {
+    setReminderTask(task)
+    setReminderDialogOpen(true)
   }
 
   const handleCreateCategory = async (data: { name: string; color: string }) => {
@@ -210,6 +231,9 @@ export function Dashboard() {
             </Button>
           </div>
 
+          {/* Email verification banner */}
+          <EmailVerificationBanner />
+
           {/* Stats */}
           {statusFilter === "ALL" && !categoryId && <StatsCards stats={stats} />}
 
@@ -242,6 +266,7 @@ export function Dashboard() {
               onDelete={handleDeleteTask}
               onStatusChange={handleStatusChange}
               onReorder={handleReorder}
+              onReminder={openReminderDialog}
             />
           )}
         </div>
@@ -254,6 +279,14 @@ export function Dashboard() {
         task={editingTask}
         categories={categories}
         onSave={editingTask ? handleUpdateTask : handleCreateTask}
+      />
+
+      {/* Reminder dialog */}
+      <ReminderDialog
+        open={reminderDialogOpen}
+        onOpenChange={setReminderDialogOpen}
+        task={reminderTask}
+        onSave={handleCreateReminder}
       />
     </div>
   )

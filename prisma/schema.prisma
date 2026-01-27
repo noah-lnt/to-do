@@ -8,15 +8,79 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  password      String
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  tasks         Task[]
-  categories    Category[]
+  id              String    @id @default(cuid())
+  name            String?
+  email           String    @unique
+  emailVerified   Boolean   @default(false)
+  password        String
+  image           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  tasks           Task[]
+  categories      Category[]
+  tokens          Token[]
+  preferences     UserPreferences?
+  reminders       Reminder[]
+}
+
+model Token {
+  id        String    @id @default(cuid())
+  type      TokenType
+  token     String    @unique
+  expiresAt DateTime
+  used      Boolean   @default(false)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@index([token, type])
+  @@index([userId])
+}
+
+enum TokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model UserPreferences {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Recap settings
+  dailyRecapEnabled     Boolean  @default(false)
+  recapTimes            String[] @default(["08:00", "18:00"])
+  recapEmail            Boolean  @default(true)
+  // Reminder settings
+  defaultReminderMinutes Int     @default(30)
+  browserNotifications  Boolean  @default(false)
+  emailNotifications    Boolean  @default(true)
+  // Display preferences
+  timezone              String   @default("Europe/Paris")
+  language              String   @default("fr")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Reminder {
+  id          String         @id @default(cuid())
+  taskId      String
+  task        Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  remindAt    DateTime
+  type        ReminderType   @default(BROWSER)
+  sent        Boolean        @default(false)
+  sentAt      DateTime?
+  createdAt   DateTime       @default(now())
+
+  @@index([userId, sent])
+  @@index([remindAt, sent])
+}
+
+enum ReminderType {
+  BROWSER
+  EMAIL
+  BOTH
 }
 
 model Category {
@@ -46,6 +110,7 @@ model Task {
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId  String?
   category    Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  reminders   Reminder[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 

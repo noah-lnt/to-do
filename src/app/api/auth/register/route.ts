@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { hashPassword, createSession } from "@/lib/auth"
 import { registerSchema } from "@/lib/validations"
+import { createToken } from "@/lib/tokens"
+import { sendVerificationEmail } from "@/lib/mail"
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +28,7 @@ export async function POST(request: NextRequest) {
         name: data.name,
         email: data.email,
         password: hashedPassword,
+        emailVerified: false,
       },
     })
 
@@ -38,10 +41,27 @@ export async function POST(request: NextRequest) {
       ],
     })
 
+    // Create default preferences
+    await prisma.userPreferences.create({
+      data: { userId: user.id },
+    })
+
+    // Send verification email
+    try {
+      const verificationToken = await createToken(user.id, "EMAIL_VERIFICATION", 24)
+      await sendVerificationEmail(data.email, verificationToken)
+    } catch (mailError) {
+      console.error("Failed to send verification email:", mailError)
+      // Don't block registration if email fails
+    }
+
     await createSession({ id: user.id, email: user.email, name: user.name })
 
     return NextResponse.json(
-      { user: { id: user.id, email: user.email, name: user.name } },
+      {
+        user: { id: user.id, email: user.email, name: user.name },
+        message: "Compte créé ! Un email de vérification a été envoyé.",
+      },
       { status: 201 }
     )
   } catch (error) {

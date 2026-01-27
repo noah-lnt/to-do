@@ -12,7 +12,9 @@ import {
   User,
   LayoutDashboard,
   ListTodo,
+  Settings,
 } from "lucide-react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -175,8 +177,14 @@ export function Sidebar({
         </div>
       </ScrollArea>
 
-      {/* Logout */}
-      <div className="border-t p-3">
+      {/* Bottom actions */}
+      <div className="border-t p-3 space-y-1">
+        <Link href="/settings">
+          <Button variant="ghost" className="w-full justify-start">
+            <Settings className="mr-2 h-4 w-4" />
+            Paramètres
+          </Button>
+        </Link>
         <Button variant="ghost" className="w-full justify-start" onClick={onLogout}>
           <LogOut className="mr-2 h-4 w-4" />
           Se déconnecter
