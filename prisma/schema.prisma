@@ -110,6 +110,11 @@ model Task {
   categoryId  String?
   category    Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   reminders   Reminder[]
+  // Recurrence fields
+  recurrencePattern  RecurrencePattern?
+  recurrenceInterval Int?               @default(1)
+  recurrenceEndDate  DateTime?
+  parentTaskId       String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -117,6 +122,13 @@ model Task {
   @@index([userId, priority])
   @@index([userId, dueDate])
   @@index([userId, categoryId])
+}
+
+enum RecurrencePattern {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
 }
 
 enum TaskStatus {

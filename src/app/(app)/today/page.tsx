@@ -1,28 +1,23 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/components/auth-provider"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import {
-  ArrowLeft,
   CheckCircle2,
   Circle,
   Clock,
   Loader2,
   AlertTriangle,
   Trophy,
-  Pencil,
   Trash2,
   MoreHorizontal,
   ArrowRight,
-  Bell,
+  Repeat,
 } from "lucide-react"
-import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -32,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { PRIORITY_CONFIG, STATUS_CONFIG } from "@/lib/types"
+import { PRIORITY_CONFIG, STATUS_CONFIG, RECURRENCE_CONFIG } from "@/lib/types"
 import type { Task } from "@/lib/types"
 
 interface TodayStats {
@@ -58,7 +53,6 @@ function CircularProgress({ percentage, size = 160 }: { percentage: number; size
   return (
     <div className="relative inline-flex items-center justify-center">
       <svg width={size} height={size} className="-rotate-90">
-        {/* Background circle */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -68,7 +62,6 @@ function CircularProgress({ percentage, size = 160 }: { percentage: number; size
           strokeWidth={strokeWidth}
           className="text-muted/30"
         />
-        {/* Progress circle */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -154,6 +147,12 @@ function TodayTaskCard({
               {task.category.name}
             </Badge>
           )}
+          {task.recurrencePattern && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+              <Repeat className="mr-1 h-3 w-3" />
+              {RECURRENCE_CONFIG[task.recurrencePattern].label}
+            </Badge>
+          )}
           {isOverdue && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
               <AlertTriangle className="mr-1 h-3 w-3" />
@@ -200,17 +199,9 @@ function TodayTaskCard({
 }
 
 export default function TodayPage() {
-  const { user, loading: authLoading } = useAuth()
-  const router = useRouter()
   const [tasks, setTasks] = useState<Task[]>([])
   const [stats, setStats] = useState<TodayStats>({ total: 0, done: 0, percentage: 0 })
   const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login")
-    }
-  }, [user, authLoading, router])
 
   const fetchToday = useCallback(async () => {
     try {
@@ -227,8 +218,8 @@ export default function TodayPage() {
   }, [])
 
   useEffect(() => {
-    if (user) fetchToday()
-  }, [user, fetchToday])
+    fetchToday()
+  }, [fetchToday])
 
   const handleToggle = async (id: string) => {
     const task = tasks.find((t) => t.id === id)
@@ -260,109 +251,71 @@ export default function TodayPage() {
     }
   }
 
-  if (authLoading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
   const todoTasks = tasks.filter((t) => t.status === "TODO")
   const inProgressTasks = tasks.filter((t) => t.status === "IN_PROGRESS")
   const doneTasks = tasks.filter((t) => t.status === "DONE")
   const todayStr = format(new Date(), "EEEE d MMMM yyyy", { locale: fr })
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-3xl p-4 md:p-6 lg:p-8 space-y-8">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Link href="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold capitalize">Aujourd&apos;hui</h1>
-            <p className="text-sm text-muted-foreground capitalize">{todayStr}</p>
-          </div>
-        </div>
+    <div className="p-4 md:p-6 lg:p-8 space-y-8 max-w-3xl mx-auto">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold capitalize">Aujourd&apos;hui</h1>
+        <p className="text-sm text-muted-foreground capitalize">{todayStr}</p>
+      </div>
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <>
-            {/* Progress ring */}
-            <Card>
-              <CardContent className="flex flex-col items-center py-8 gap-4">
-                <CircularProgress percentage={stats.percentage} />
-                <div className="flex items-center gap-6 text-sm">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>{stats.done} terminée{stats.done !== 1 ? "s" : ""}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Circle className="h-4 w-4 text-muted-foreground" />
-                    <span>{stats.total - stats.done} restante{(stats.total - stats.done) !== 1 ? "s" : ""}</span>
-                  </div>
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          {/* Progress ring */}
+          <Card>
+            <CardContent className="flex flex-col items-center py-8 gap-4">
+              <CircularProgress percentage={stats.percentage} />
+              <div className="flex items-center gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>{stats.done} terminée{stats.done !== 1 ? "s" : ""}</span>
                 </div>
-                {stats.percentage === 100 && stats.total > 0 && (
-                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
-                    <Trophy className="h-5 w-5" />
-                    Toutes les tâches sont terminées !
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <Circle className="h-4 w-4 text-muted-foreground" />
+                  <span>{stats.total - stats.done} restante{(stats.total - stats.done) !== 1 ? "s" : ""}</span>
+                </div>
+              </div>
+              {stats.percentage === 100 && stats.total > 0 && (
+                <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
+                  <Trophy className="h-5 w-5" />
+                  Toutes les tâches sont terminées !
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Task sections */}
+          {tasks.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center py-12 text-center">
+                <CheckCircle2 className="h-12 w-12 text-muted-foreground/40 mb-4" />
+                <p className="text-lg font-medium">Aucune tâche pour aujourd&apos;hui</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Ajoutez des tâches avec une date d&apos;échéance pour les voir ici
+                </p>
               </CardContent>
             </Card>
-
-            {/* Task sections */}
-            {tasks.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center py-12 text-center">
-                  <CheckCircle2 className="h-12 w-12 text-muted-foreground/40 mb-4" />
-                  <p className="text-lg font-medium">Aucune tâche pour aujourd&apos;hui</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Ajoutez des tâches avec une date d&apos;échéance pour les voir ici
-                  </p>
-                  <Link href="/" className="mt-4">
-                    <Button>Aller au tableau de bord</Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                {/* Overdue / urgent section */}
-                {todoTasks.filter((t) => t.dueDate && new Date(t.dueDate) < new Date()).length > 0 && (
-                  <div className="space-y-3">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold text-red-600 dark:text-red-400">
-                      <AlertTriangle className="h-4 w-4" />
-                      En retard
-                    </h2>
-                    {todoTasks
-                      .filter((t) => t.dueDate && new Date(t.dueDate) < new Date())
-                      .map((task) => (
-                        <TodayTaskCard
-                          key={task.id}
-                          task={task}
-                          onToggle={handleToggle}
-                          onStatusChange={handleStatusChange}
-                          onDelete={handleDelete}
-                        />
-                      ))}
-                  </div>
-                )}
-
-                {/* In progress */}
-                {inProgressTasks.length > 0 && (
-                  <div className="space-y-3">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400">
-                      <Clock className="h-4 w-4" />
-                      En cours ({inProgressTasks.length})
-                    </h2>
-                    {inProgressTasks.map((task) => (
+          ) : (
+            <div className="space-y-6">
+              {/* Overdue section */}
+              {todoTasks.filter((t) => t.dueDate && new Date(t.dueDate) < new Date()).length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-red-600 dark:text-red-400">
+                    <AlertTriangle className="h-4 w-4" />
+                    En retard
+                  </h2>
+                  {todoTasks
+                    .filter((t) => t.dueDate && new Date(t.dueDate) < new Date())
+                    .map((task) => (
                       <TodayTaskCard
                         key={task.id}
                         task={task}
@@ -371,38 +324,38 @@ export default function TodayPage() {
                         onDelete={handleDelete}
                       />
                     ))}
-                  </div>
-                )}
+                </div>
+              )}
 
-                {/* To do */}
-                {todoTasks.filter((t) => !t.dueDate || new Date(t.dueDate) >= new Date()).length > 0 && (
-                  <div className="space-y-3">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold">
-                      <Circle className="h-4 w-4" />
-                      À faire ({todoTasks.filter((t) => !t.dueDate || new Date(t.dueDate) >= new Date()).length})
-                    </h2>
-                    {todoTasks
-                      .filter((t) => !t.dueDate || new Date(t.dueDate) >= new Date())
-                      .map((task) => (
-                        <TodayTaskCard
-                          key={task.id}
-                          task={task}
-                          onToggle={handleToggle}
-                          onStatusChange={handleStatusChange}
-                          onDelete={handleDelete}
-                        />
-                      ))}
-                  </div>
-                )}
+              {/* In progress */}
+              {inProgressTasks.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400">
+                    <Clock className="h-4 w-4" />
+                    En cours ({inProgressTasks.length})
+                  </h2>
+                  {inProgressTasks.map((task) => (
+                    <TodayTaskCard
+                      key={task.id}
+                      task={task}
+                      onToggle={handleToggle}
+                      onStatusChange={handleStatusChange}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              )}
 
-                {/* Done */}
-                {doneTasks.length > 0 && (
-                  <div className="space-y-3">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold text-green-600 dark:text-green-400">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Terminées ({doneTasks.length})
-                    </h2>
-                    {doneTasks.map((task) => (
+              {/* To do */}
+              {todoTasks.filter((t) => !t.dueDate || new Date(t.dueDate) >= new Date()).length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold">
+                    <Circle className="h-4 w-4" />
+                    À faire ({todoTasks.filter((t) => !t.dueDate || new Date(t.dueDate) >= new Date()).length})
+                  </h2>
+                  {todoTasks
+                    .filter((t) => !t.dueDate || new Date(t.dueDate) >= new Date())
+                    .map((task) => (
                       <TodayTaskCard
                         key={task.id}
                         task={task}
@@ -411,13 +364,31 @@ export default function TodayPage() {
                         onDelete={handleDelete}
                       />
                     ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+                </div>
+              )}
+
+              {/* Done */}
+              {doneTasks.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-green-600 dark:text-green-400">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Terminées ({doneTasks.length})
+                  </h2>
+                  {doneTasks.map((task) => (
+                    <TodayTaskCard
+                      key={task.id}
+                      task={task}
+                      onToggle={handleToggle}
+                      onStatusChange={handleStatusChange}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

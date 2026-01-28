@@ -1,3 +1,5 @@
+export type RecurrencePattern = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY"
+
 export interface Task {
   id: string
   title: string
@@ -10,6 +12,10 @@ export interface Task {
   userId: string
   categoryId: string | null
   category: Category | null
+  recurrencePattern: RecurrencePattern | null
+  recurrenceInterval: number | null
+  recurrenceEndDate: string | null
+  parentTaskId: string | null
   createdAt: string
   updatedAt: string
 }
@@ -58,4 +64,11 @@ export const STATUS_CONFIG = {
   TODO: { label: "À faire", color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
   IN_PROGRESS: { label: "En cours", color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" },
   DONE: { label: "Terminée", color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" },
+} as const
+
+export const RECURRENCE_CONFIG = {
+  DAILY: { label: "Quotidien", plural: "jours" },
+  WEEKLY: { label: "Hebdomadaire", plural: "semaines" },
+  MONTHLY: { label: "Mensuel", plural: "mois" },
+  YEARLY: { label: "Annuel", plural: "ans" },
 } as const

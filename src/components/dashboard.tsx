@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { Plus, Menu, X } from "lucide-react"
+import { Plus, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sidebar } from "@/components/sidebar"
 import { StatsCards } from "@/components/stats-cards"
@@ -29,6 +29,23 @@ export function Dashboard() {
   const [search, setSearch] = useState("")
   const [sortBy, setSortBy] = useState<SortBy>("position")
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
+
+  // Sidebar collapse state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  // Load collapsed state from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("sidebar-collapsed")
+    if (saved !== null) {
+      setSidebarCollapsed(saved === "true")
+    }
+  }, [])
+
+  // Save collapsed state
+  const handleCollapsedChange = (value: boolean) => {
+    setSidebarCollapsed(value)
+    localStorage.setItem("sidebar-collapsed", String(value))
+  }
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState("")
@@ -201,6 +218,8 @@ export function Dashboard() {
           onCreateCategory={handleCreateCategory}
           onDeleteCategory={handleDeleteCategory}
           onLogout={logout}
+          collapsed={sidebarCollapsed}
+          onCollapsedChange={handleCollapsedChange}
         />
       </div>
 

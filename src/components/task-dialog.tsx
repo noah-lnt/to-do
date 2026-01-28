@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { Repeat } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -14,7 +16,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
-import type { Task, Category } from "@/lib/types"
+import type { Task, Category, RecurrencePattern } from "@/lib/types"
+import { RECURRENCE_CONFIG } from "@/lib/types"
 
 interface TaskDialogProps {
   open: boolean
@@ -33,6 +36,12 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
   const [categoryId, setCategoryId] = useState("")
   const [loading, setLoading] = useState(false)
 
+  // Recurrence fields
+  const [hasRecurrence, setHasRecurrence] = useState(false)
+  const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>("DAILY")
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1)
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("")
+
   const isEditing = !!task
 
   useEffect(() => {
@@ -43,6 +52,10 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
       setStatus(task.status)
       setDueDate(task.dueDate ? task.dueDate.split("T")[0] : "")
       setCategoryId(task.categoryId || "")
+      setHasRecurrence(!!task.recurrencePattern)
+      setRecurrencePattern(task.recurrencePattern || "DAILY")
+      setRecurrenceInterval(task.recurrenceInterval || 1)
+      setRecurrenceEndDate(task.recurrenceEndDate ? task.recurrenceEndDate.split("T")[0] : "")
     } else {
       setTitle("")
       setDescription("")
@@ -50,6 +63,10 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
       setStatus("TODO")
       setDueDate("")
       setCategoryId("")
+      setHasRecurrence(false)
+      setRecurrencePattern("DAILY")
+      setRecurrenceInterval(1)
+      setRecurrenceEndDate("")
     }
   }, [task, open])
 
@@ -66,6 +83,9 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
         status,
         dueDate: dueDate || null,
         categoryId: categoryId || null,
+        recurrencePattern: hasRecurrence ? recurrencePattern : null,
+        recurrenceInterval: hasRecurrence ? recurrenceInterval : null,
+        recurrenceEndDate: hasRecurrence && recurrenceEndDate ? recurrenceEndDate : null,
       })
       onOpenChange(false)
     } catch (err) {
@@ -75,9 +95,18 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
     }
   }
 
+  const getRecurrenceLabel = () => {
+    if (!hasRecurrence) return ""
+    const config = RECURRENCE_CONFIG[recurrencePattern]
+    if (recurrenceInterval === 1) {
+      return config.label
+    }
+    return `Tous les ${recurrenceInterval} ${config.plural}`
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Modifier la tâche" : "Nouvelle tâche"}</DialogTitle>
           <DialogDescription>
@@ -161,6 +190,70 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
                 ))}
               </Select>
             </div>
+          </div>
+
+          {/* Recurrence Section */}
+          <div className="space-y-3 pt-2 border-t">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="hasRecurrence"
+                checked={hasRecurrence}
+                onCheckedChange={(checked) => setHasRecurrence(checked as boolean)}
+              />
+              <Label htmlFor="hasRecurrence" className="flex items-center gap-2 cursor-pointer">
+                <Repeat className="h-4 w-4" />
+                Tâche récurrente
+              </Label>
+            </div>
+
+            {hasRecurrence && (
+              <div className="space-y-3 pl-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="recurrencePattern">Fréquence</Label>
+                    <Select
+                      value={recurrencePattern}
+                      onValueChange={(v) => setRecurrencePattern(v as RecurrencePattern)}
+                    >
+                      <option value="DAILY">Quotidien</option>
+                      <option value="WEEKLY">Hebdomadaire</option>
+                      <option value="MONTHLY">Mensuel</option>
+                      <option value="YEARLY">Annuel</option>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="recurrenceInterval">Intervalle</Label>
+                    <Input
+                      id="recurrenceInterval"
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={recurrenceInterval}
+                      onChange={(e) => setRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="recurrenceEndDate">Date de fin (optionnel)</Label>
+                  <Input
+                    id="recurrenceEndDate"
+                    type="date"
+                    value={recurrenceEndDate}
+                    onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                    min={dueDate || undefined}
+                  />
+                </div>
+
+                {hasRecurrence && (
+                  <p className="text-xs text-muted-foreground">
+                    {getRecurrenceLabel()}
+                    {recurrenceEndDate && ` jusqu'au ${new Date(recurrenceEndDate).toLocaleDateString("fr-FR")}`}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter>
