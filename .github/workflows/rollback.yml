@@ -1,0 +1,80 @@
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA to rollback to'
+        required: true
+        type: string
+      confirm:
+        description: 'Type "rollback" to confirm'
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    name: Rollback to Previous Version
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'rollback'
+
+    steps:
+      - name: Validate input
+        run: |
+          if [ -z "${{ github.event.inputs.commit_sha }}" ]; then
+            echo "Error: Commit SHA is required"
+            exit 1
+          fi
+          echo "Rolling back to: ${{ github.event.inputs.commit_sha }}"
+
+      - name: Rollback via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            echo "📥 Fetching latest refs..."
+            git fetch origin
+
+            echo "🔙 Rolling back to ${{ github.event.inputs.commit_sha }}..."
+            git checkout ${{ github.event.inputs.commit_sha }}
+
+            echo "🐳 Rebuilding application..."
+            docker compose -f docker-compose.prod.yml up -d --build app
+
+            echo "⏳ Waiting for app to start..."
+            sleep 10
+
+            echo "🔍 Running database migrations..."
+            docker exec todo-app npx prisma db push --skip-generate || true
+
+            echo "✅ Rollback complete!"
+
+      - name: Health Check
+        run: |
+          echo "Waiting for app to be ready..."
+          sleep 5
+
+          for i in {1..5}; do
+            response=$(curl -s -o /dev/null -w "%{http_code}" "https://${{ secrets.APP_DOMAIN }}/api/health" || echo "000")
+            if [ "$response" = "200" ]; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i: Got HTTP $response, retrying in 10s..."
+            sleep 10
+          done
+
+          echo "❌ Health check failed - manual verification required"
+          exit 1
+
+      - name: Notify rollback
+        if: vars.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"⚠️ TaskFlow ROLLBACK executed!\nRolled back to: ${{ github.event.inputs.commit_sha }}\nBy: ${{ github.actor }}"}' \
+            ${{ vars.SLACK_WEBHOOK_URL }}

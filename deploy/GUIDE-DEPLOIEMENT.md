@@ -294,6 +294,119 @@ docker exec todo-app npx prisma db push
 
 ---
 
+## CI/CD : Déploiement automatique
+
+Le projet inclut un pipeline GitHub Actions qui déploie automatiquement l'application sur le serveur à chaque push sur `main`.
+
+### Architecture CI/CD
+
+```
+GitHub (push main) → GitHub Actions → SSH → Serveur Production
+                          │
+                    ┌─────┴─────┐
+                    │ 1. Lint   │
+                    │ 2. Deploy │
+                    │ 3. Notify │
+                    └───────────┘
+```
+
+### Configuration des secrets GitHub
+
+Aller dans **Settings > Secrets and variables > Actions** et ajouter :
+
+| Secret | Description | Exemple |
+|--------|-------------|---------|
+| `DEPLOY_HOST` | IP ou hostname du serveur | `203.0.113.50` |
+| `DEPLOY_USER` | Utilisateur SSH | `deploy` |
+| `DEPLOY_SSH_KEY` | Clé privée SSH (ed25519) | Contenu de `~/.ssh/id_ed25519` |
+| `DEPLOY_PATH` | Chemin de l'application | `/opt/taskflow` |
+| `APP_DOMAIN` | Domaine de l'application | `todo.example.com` |
+
+**Optionnel** (dans Variables, pas Secrets) :
+
+| Variable | Description |
+|----------|-------------|
+| `SLACK_WEBHOOK_URL` | Webhook Slack pour notifications |
+
+### Configuration serveur pour CI/CD
+
+```bash
+# 1. Créer l'utilisateur deploy (si pas déjà fait)
+adduser deploy --disabled-password
+usermod -aG docker deploy
+chown -R deploy:deploy /opt/taskflow
+
+# 2. Générer une clé SSH pour GitHub Actions
+ssh-keygen -t ed25519 -f ~/.ssh/github_actions -N "" -C "github-actions"
+
+# 3. Autoriser cette clé
+cat ~/.ssh/github_actions.pub >> /home/deploy/.ssh/authorized_keys
+chmod 600 /home/deploy/.ssh/authorized_keys
+chown deploy:deploy /home/deploy/.ssh/authorized_keys
+
+# 4. Copier la clé PRIVÉE dans GitHub Secrets (DEPLOY_SSH_KEY)
+cat ~/.ssh/github_actions
+```
+
+### Fonctionnement du pipeline
+
+Le workflow `.github/workflows/deploy.yml` :
+
+1. **CI** : Vérifie le code (lint + type-check)
+2. **Deploy** : Se connecte en SSH et exécute :
+   - `git fetch && git reset --hard origin/main`
+   - `docker compose up -d --build app`
+   - `prisma db push`
+3. **Health Check** : Vérifie que `/api/health` répond 200
+4. **Notify** : Envoie une notification Slack (optionnel)
+
+### Endpoint Health Check
+
+L'application expose un endpoint `/api/health` :
+
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-01-28T12:00:00Z",
+  "version": "1.0.0",
+  "checks": {
+    "database": "ok",
+    "uptime": 3600
+  }
+}
+```
+
+### Rollback
+
+**Option 1 : Via GitHub Actions UI**
+
+1. Aller dans **Actions > Rollback Deployment**
+2. Cliquer sur **Run workflow**
+3. Entrer le SHA du commit cible
+4. Taper "rollback" pour confirmer
+
+**Option 2 : Manuellement sur le serveur**
+
+```bash
+cd /opt/taskflow
+./scripts/rollback.sh <commit-sha>
+```
+
+### Vérifier le déploiement
+
+```bash
+# Voir le dernier déploiement
+git log -1 --oneline
+
+# Vérifier l'état de l'app
+curl https://todo.example.com/api/health
+
+# Voir les logs
+docker compose -f docker-compose.prod.yml logs -f app
+```
+
+---
+
 ## Monitoring
 
 ### Avec Uptime Kuma (recommandé)
