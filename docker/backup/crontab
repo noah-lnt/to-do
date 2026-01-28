@@ -1,0 +1,5 @@
+# Daily backup at 02:00 UTC
+0 2 * * * /usr/local/bin/backup.sh >> /var/log/backup.log 2>&1
+
+# Optional: second backup at 14:00 UTC
+# 0 14 * * * /usr/local/bin/backup.sh >> /var/log/backup.log 2>&1

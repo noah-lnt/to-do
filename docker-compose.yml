@@ -1,4 +1,7 @@
 services:
+  # =============================================
+  # Reverse Proxy
+  # =============================================
   traefik:
     image: traefik:v3.2
     container_name: traefik
@@ -20,6 +23,9 @@ services:
     networks:
       - web
 
+  # =============================================
+  # Application
+  # =============================================
   app:
     build:
       context: .
@@ -27,11 +33,18 @@ services:
     container_name: todo-app
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/todoapp?schema=public
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db-primary:5432/${POSTGRES_DB:-todoapp}?schema=public
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-me-in-production}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - CRON_SECRET=${CRON_SECRET:-}
     depends_on:
-      db:
+      db-primary:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
@@ -46,28 +59,103 @@ services:
       - web
       - internal
 
-  db:
+  # =============================================
+  # PostgreSQL Primary (read/write)
+  # =============================================
+  db-primary:
     image: postgres:16-alpine
-    container_name: todo-db
+    container_name: todo-db-primary
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=postgres
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_DB=todoapp
+      - POSTGRES_DB=${POSTGRES_DB:-todoapp}
+      - REPLICATION_USER=${REPLICATION_USER:-replicator}
+      - REPLICATION_PASSWORD=${REPLICATION_PASSWORD:-replicator_pass}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_primary_data:/var/lib/postgresql/data
+      - postgres_wal_archive:/var/lib/postgresql/wal_archive
+      - ./docker/postgres-primary/init-replication.sh:/docker-entrypoint-initdb.d/init-replication.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - internal
-    ports:
-      - "5432:5432"  # Expose for local development; remove in production
+    # Expose for direct access (remove in production)
+    # ports:
+    #   - "5432:5432"
+
+  # =============================================
+  # PostgreSQL Replica (read-only, streaming)
+  # =============================================
+  db-replica:
+    image: postgres:16-alpine
+    container_name: todo-db-replica
+    restart: unless-stopped
+    environment:
+      - PGDATA=/var/lib/postgresql/data
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - PRIMARY_HOST=db-primary
+      - REPLICATION_USER=${REPLICATION_USER:-replicator}
+      - REPLICATION_PASSWORD=${REPLICATION_PASSWORD:-replicator_pass}
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ./docker/postgres-replica/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    depends_on:
+      db-primary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+    # Expose on different port for read queries (optional)
+    # ports:
+    #   - "5433:5432"
+
+  # =============================================
+  # Automated Backups (daily pg_dump + S3 upload)
+  # =============================================
+  backup:
+    build:
+      context: ./docker/backup
+      dockerfile: Dockerfile
+    container_name: todo-backup
+    restart: unless-stopped
+    environment:
+      - DB_HOST=db-primary
+      - DB_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-todoapp}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
+      # S3-compatible storage (AWS S3, MinIO, Scaleway, OVH, etc.)
+      - S3_ENABLED=${S3_ENABLED:-false}
+      - S3_BUCKET=${S3_BUCKET:-}
+      - S3_PREFIX=${S3_PREFIX:-postgres-backups}
+      - S3_ENDPOINT=${S3_ENDPOINT:-}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-eu-west-3}
+    volumes:
+      - backup_data:/backups
+    depends_on:
+      db-primary:
+        condition: service_healthy
+    networks:
+      - internal
 
 volumes:
-  postgres_data:
+  postgres_primary_data:
+  postgres_replica_data:
+  postgres_wal_archive:
+  backup_data:
 
 networks:
   web:
