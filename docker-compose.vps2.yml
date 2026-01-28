@@ -1,0 +1,36 @@
+# =============================================
+# VPS 2 — Replica (PostgreSQL hot standby)
+# =============================================
+# Usage: docker compose -f docker-compose.vps2.yml up -d
+#
+# Ce serveur maintient une copie temps réel de la BDD
+# du VPS1 via streaming replication PostgreSQL.
+# En cas de panne du VPS1, il peut être promu en primary.
+
+services:
+  db-replica:
+    image: postgres:16-alpine
+    container_name: todo-db-replica
+    restart: unless-stopped
+    environment:
+      - PGDATA=/var/lib/postgresql/data
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      # Adresse IP ou hostname du VPS1
+      - PRIMARY_HOST=${PRIMARY_HOST}
+      - REPLICATION_USER=${REPLICATION_USER:-replicator}
+      - REPLICATION_PASSWORD=${REPLICATION_PASSWORD}
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ./docker/postgres-replica/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "127.0.0.1:5432:5432"
+
+volumes:
+  postgres_replica_data:

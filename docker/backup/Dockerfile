@@ -1,7 +1,7 @@
 FROM postgres:16-alpine
 
-# Install AWS CLI for S3 uploads
-RUN apk add --no-cache aws-cli bash
+# Install tools: AWS CLI (S3), rsync + openssh (Synology NAS)
+RUN apk add --no-cache aws-cli bash rsync openssh-client
 
 COPY backup.sh /usr/local/bin/backup.sh
 COPY restore.sh /usr/local/bin/restore.sh

@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # PostgreSQL Backup Script
-# Supports: local storage + S3-compatible object storage
+# Supports: local + S3-compatible storage + rsync/SSH (Synology)
 # =============================================================
 set -euo pipefail
 
@@ -22,6 +22,11 @@ S3_BUCKET="${S3_BUCKET:-}"
 S3_PREFIX="${S3_PREFIX:-postgres-backups}"
 S3_ENDPOINT="${S3_ENDPOINT:-}"
 
+# Rsync/SSH configuration (optional — ideal for Synology NAS)
+RSYNC_ENABLED="${RSYNC_ENABLED:-false}"
+RSYNC_TARGET="${RSYNC_TARGET:-}"
+# Format RSYNC_TARGET: user@synology-ip:/volume1/backups/postgres
+
 echo "========================================="
 echo " PostgreSQL Backup"
 echo " $(date '+%Y-%m-%d %H:%M:%S')"
@@ -35,7 +40,7 @@ mkdir -p "$BACKUP_DIR"
 # 1. pg_dump (compressed)
 # ---------------------------------------------------------
 echo ""
-echo "[1/4] Running pg_dump..."
+echo "[1/5] Running pg_dump..."
 PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" pg_dump \
   -h "$DB_HOST" \
   -p "$DB_PORT" \
@@ -53,7 +58,7 @@ echo "   Backup created: ${BACKUP_FILENAME} (${BACKUP_SIZE})"
 # 2. Verify backup integrity
 # ---------------------------------------------------------
 echo ""
-echo "[2/4] Verifying backup integrity..."
+echo "[2/5] Verifying backup integrity..."
 if gzip -t "$BACKUP_PATH" 2>/dev/null; then
   echo "   Backup integrity: OK"
 else
@@ -65,7 +70,7 @@ fi
 # 3. Upload to S3 (if enabled)
 # ---------------------------------------------------------
 echo ""
-echo "[3/4] S3 upload..."
+echo "[3/5] S3 upload..."
 if [ "$S3_ENABLED" = "true" ] && [ -n "$S3_BUCKET" ]; then
   S3_DEST="s3://${S3_BUCKET}/${S3_PREFIX}/${BACKUP_FILENAME}"
 
@@ -94,10 +99,48 @@ else
 fi
 
 # ---------------------------------------------------------
-# 4. Clean old local backups
+# 4. Rsync to Synology NAS (if enabled)
 # ---------------------------------------------------------
 echo ""
-echo "[4/4] Cleaning local backups older than ${RETENTION_DAYS} days..."
+echo "[4/5] Synology NAS (rsync/SSH)..."
+if [ "$RSYNC_ENABLED" = "true" ] && [ -n "$RSYNC_TARGET" ]; then
+  # Set up SSH to accept unknown hosts (first connection)
+  mkdir -p /root/.ssh
+  if [ ! -f /root/.ssh/config ]; then
+    echo -e "Host *\n  StrictHostKeyChecking accept-new\n  ServerAliveInterval 30" > /root/.ssh/config
+    chmod 600 /root/.ssh/config
+  fi
+
+  # Set correct permissions on SSH key if mounted
+  if [ -f /root/.ssh/id_ed25519 ]; then
+    chmod 600 /root/.ssh/id_ed25519
+  fi
+
+  echo "   Syncing to ${RSYNC_TARGET}..."
+  rsync -avz --progress \
+    "$BACKUP_PATH" \
+    "${RSYNC_TARGET}/" \
+    2>&1 | sed 's/^/   /'
+
+  echo "   Sync complete."
+
+  # Clean old remote backups via SSH
+  RSYNC_HOST=$(echo "$RSYNC_TARGET" | cut -d: -f1)
+  RSYNC_PATH=$(echo "$RSYNC_TARGET" | cut -d: -f2)
+
+  if [ -n "$RSYNC_HOST" ] && [ -n "$RSYNC_PATH" ]; then
+    echo "   Cleaning remote backups older than ${RETENTION_DAYS} days..."
+    ssh "$RSYNC_HOST" "find ${RSYNC_PATH} -name 'backup_*.sql.gz' -mtime +${RETENTION_DAYS} -delete" 2>/dev/null || true
+  fi
+else
+  echo "   Rsync disabled, skipping."
+fi
+
+# ---------------------------------------------------------
+# 5. Clean old local backups
+# ---------------------------------------------------------
+echo ""
+echo "[5/5] Cleaning local backups older than ${RETENTION_DAYS} days..."
 DELETED_COUNT=$(find "$BACKUP_DIR" -name "backup_*.sql.gz" -mtime +${RETENTION_DAYS} -print -delete | wc -l)
 echo "   Deleted ${DELETED_COUNT} old backup(s)."
 
@@ -115,5 +158,6 @@ echo " File     : ${BACKUP_FILENAME}"
 echo " Size     : ${BACKUP_SIZE}"
 echo " Local    : ${TOTAL_BACKUPS} backup(s), ${TOTAL_SIZE} total"
 echo " S3       : ${S3_ENABLED}"
+echo " Synology : ${RSYNC_ENABLED}"
 echo " Duration : ${SECONDS}s"
 echo "========================================="
