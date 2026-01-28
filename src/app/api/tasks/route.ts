@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const priority = searchParams.get("priority")
     const categoryId = searchParams.get("categoryId")
     const search = searchParams.get("search")
+    const dueDate = searchParams.get("dueDate")
     const sortBy = searchParams.get("sortBy") || "position"
     const sortOrder = searchParams.get("sortOrder") || "asc"
 
@@ -20,6 +21,13 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status
     if (priority) where.priority = priority
     if (categoryId) where.categoryId = categoryId
+    if (dueDate) {
+      const dayStart = new Date(dueDate)
+      dayStart.setHours(0, 0, 0, 0)
+      const dayEnd = new Date(dueDate)
+      dayEnd.setHours(23, 59, 59, 999)
+      where.dueDate = { gte: dayStart, lte: dayEnd }
+    }
     if (search) {
       where.OR = [
         { title: { contains: search, mode: "insensitive" } },

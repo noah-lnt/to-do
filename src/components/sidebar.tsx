@@ -13,6 +13,8 @@ import {
   LayoutDashboard,
   ListTodo,
   Settings,
+  CalendarDays,
+  Sun,
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -119,6 +121,31 @@ export function Sidebar({
               {item.label}
             </button>
           ))}
+        </div>
+
+        <Separator className="my-4" />
+
+        {/* Views */}
+        <div className="space-y-1">
+          <div className="px-3 py-1">
+            <span className="text-xs font-semibold uppercase text-muted-foreground">
+              Vues
+            </span>
+          </div>
+          <Link
+            href="/today"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent text-sidebar-foreground/70"
+          >
+            <Sun className="h-4 w-4" />
+            Aujourd&apos;hui
+          </Link>
+          <Link
+            href="/calendar"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent text-sidebar-foreground/70"
+          >
+            <CalendarDays className="h-4 w-4" />
+            Calendrier
+          </Link>
         </div>
 
         <Separator className="my-4" />
