@@ -85,7 +85,7 @@ Exemple minimal de `docker-compose.infra.yml` pour Traefik :
 # /opt/infra/docker-compose.yml
 services:
   traefik:
-    image: traefik:v3.2
+    image: traefik:v3.6
     restart: unless-stopped
     command:
       - "--api.insecure=true"
