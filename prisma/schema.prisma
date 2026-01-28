@@ -115,6 +115,9 @@ model Task {
   recurrenceInterval Int?               @default(1)
   recurrenceEndDate  DateTime?
   parentTaskId       String?
+  // Notification fields
+  notifyOnComplete   Boolean            @default(false)
+  notifyEmail        String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 

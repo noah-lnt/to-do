@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
 import { taskSchema } from "@/lib/validations"
 import { addDays, addWeeks, addMonths, addYears } from "date-fns"
+import { sendTaskCompletionNotification } from "@/lib/mail"
 
 function calculateNextDueDate(
   currentDueDate: Date,
@@ -80,6 +81,10 @@ export async function PATCH(
     if (data.recurrenceInterval !== undefined) updateData.recurrenceInterval = data.recurrenceInterval
     if (data.recurrenceEndDate !== undefined) updateData.recurrenceEndDate = data.recurrenceEndDate ? new Date(data.recurrenceEndDate) : null
 
+    // Notification fields
+    if (data.notifyOnComplete !== undefined) updateData.notifyOnComplete = data.notifyOnComplete
+    if (data.notifyEmail !== undefined) updateData.notifyEmail = data.notifyEmail || null
+
     // Handle status change
     if (data.status !== undefined) {
       updateData.status = data.status
@@ -142,6 +147,26 @@ export async function PATCH(
       data: updateData,
       include: { category: true },
     })
+
+    // Send completion notification email if applicable
+    if (
+      data.status === "DONE" &&
+      existingTask.status !== "DONE" &&
+      existingTask.notifyOnComplete &&
+      existingTask.notifyEmail
+    ) {
+      try {
+        await sendTaskCompletionNotification(
+          existingTask.notifyEmail,
+          existingTask.title,
+          user.name || user.email,
+          new Date()
+        )
+      } catch (emailError) {
+        // Log error but don't fail the task update
+        console.error("Failed to send completion notification:", emailError)
+      }
+    }
 
     return NextResponse.json(task)
   } catch (error) {

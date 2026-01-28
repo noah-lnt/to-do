@@ -22,6 +22,8 @@ export const taskSchema = z.object({
   recurrencePattern: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]).optional().nullable(),
   recurrenceInterval: z.number().min(1).max(365).optional().nullable(),
   recurrenceEndDate: z.string().optional().nullable(),
+  notifyOnComplete: z.boolean().optional(),
+  notifyEmail: z.string().email("Email invalide").optional().nullable(),
 })
 
 export const categorySchema = z.object({

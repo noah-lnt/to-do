@@ -16,6 +16,8 @@ export interface Task {
   recurrenceInterval: number | null
   recurrenceEndDate: string | null
   parentTaskId: string | null
+  notifyOnComplete: boolean
+  notifyEmail: string | null
   createdAt: string
   updatedAt: string
 }

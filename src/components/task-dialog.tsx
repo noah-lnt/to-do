@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Repeat } from "lucide-react"
+import { Repeat, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -42,6 +42,10 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
   const [recurrenceInterval, setRecurrenceInterval] = useState(1)
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("")
 
+  // Notification fields
+  const [notifyOnComplete, setNotifyOnComplete] = useState(false)
+  const [notifyEmail, setNotifyEmail] = useState("")
+
   const isEditing = !!task
 
   useEffect(() => {
@@ -56,6 +60,8 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
       setRecurrencePattern(task.recurrencePattern || "DAILY")
       setRecurrenceInterval(task.recurrenceInterval || 1)
       setRecurrenceEndDate(task.recurrenceEndDate ? task.recurrenceEndDate.split("T")[0] : "")
+      setNotifyOnComplete(task.notifyOnComplete || false)
+      setNotifyEmail(task.notifyEmail || "")
     } else {
       setTitle("")
       setDescription("")
@@ -67,6 +73,8 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
       setRecurrencePattern("DAILY")
       setRecurrenceInterval(1)
       setRecurrenceEndDate("")
+      setNotifyOnComplete(false)
+      setNotifyEmail("")
     }
   }, [task, open])
 
@@ -86,6 +94,8 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
         recurrencePattern: hasRecurrence ? recurrencePattern : null,
         recurrenceInterval: hasRecurrence ? recurrenceInterval : null,
         recurrenceEndDate: hasRecurrence && recurrenceEndDate ? recurrenceEndDate : null,
+        notifyOnComplete,
+        notifyEmail: notifyOnComplete && notifyEmail.trim() ? notifyEmail.trim() : null,
       })
       onOpenChange(false)
     } catch (err) {
@@ -106,7 +116,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Modifier la tâche" : "Nouvelle tâche"}</DialogTitle>
           <DialogDescription>
@@ -138,7 +148,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="priority">Priorité</Label>
               <Select
@@ -165,7 +175,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="dueDate">Date d&apos;échéance</Label>
               <Input
@@ -208,7 +218,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
 
             {hasRecurrence && (
               <div className="space-y-3 pl-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="recurrencePattern">Fréquence</Label>
                     <Select
@@ -252,6 +262,37 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
                     {recurrenceEndDate && ` jusqu'au ${new Date(recurrenceEndDate).toLocaleDateString("fr-FR")}`}
                   </p>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Notification Section */}
+          <div className="space-y-3 pt-2 border-t">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="notifyOnComplete"
+                checked={notifyOnComplete}
+                onCheckedChange={(checked) => setNotifyOnComplete(checked as boolean)}
+              />
+              <Label htmlFor="notifyOnComplete" className="flex items-center gap-2 cursor-pointer">
+                <Mail className="h-4 w-4" />
+                Notifier quelqu&apos;un à la complétion
+              </Label>
+            </div>
+
+            {notifyOnComplete && (
+              <div className="space-y-2 pl-6">
+                <Label htmlFor="notifyEmail">Email du destinataire</Label>
+                <Input
+                  id="notifyEmail"
+                  type="email"
+                  value={notifyEmail}
+                  onChange={(e) => setNotifyEmail(e.target.value)}
+                  placeholder="exemple@email.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Cette personne recevra un email lorsque la tâche sera terminée.
+                </p>
               </div>
             )}
           </div>
