@@ -135,11 +135,11 @@ export function Sidebar({
 
     if (collapsed) {
       return (
-        <Tooltip delayDuration={0}>
+        <Tooltip>
           <TooltipTrigger asChild>
             {href ? <Link href={href}>{content}</Link> : content}
           </TooltipTrigger>
-          <TooltipContent side="right">
+          <TooltipContent>
             {label}
           </TooltipContent>
         </Tooltip>
@@ -160,7 +160,7 @@ export function Sidebar({
         {/* User info */}
         <div className={cn("flex items-center gap-3 p-4 border-b", collapsed && "justify-center p-2")}>
           {collapsed ? (
-            <Tooltip delayDuration={0}>
+            <Tooltip>
               <TooltipTrigger asChild>
                 <Avatar className="h-9 w-9">
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs">
@@ -168,7 +168,7 @@ export function Sidebar({
                   </AvatarFallback>
                 </Avatar>
               </TooltipTrigger>
-              <TooltipContent side="right">
+              <TooltipContent>
                 <p className="font-medium">{user.name || user.email}</p>
                 <p className="text-xs text-muted-foreground">{user.email}</p>
               </TooltipContent>
@@ -260,7 +260,7 @@ export function Sidebar({
             )}
 
             {collapsed && (
-              <Tooltip delayDuration={0}>
+              <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
@@ -271,7 +271,7 @@ export function Sidebar({
                     <FolderPlus className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">
+                <TooltipContent>
                   Nouvelle catégorie
                 </TooltipContent>
               </Tooltip>
@@ -280,7 +280,7 @@ export function Sidebar({
             {categories.map((category) => (
               <div key={category.id}>
                 {collapsed ? (
-                  <Tooltip delayDuration={0}>
+                  <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         className={cn(
@@ -300,7 +300,7 @@ export function Sidebar({
                         />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="right">
+                    <TooltipContent>
                       {category.name} ({category._count?.tasks || 0})
                     </TooltipContent>
                   </Tooltip>
@@ -363,7 +363,7 @@ export function Sidebar({
           {onCollapsedChange && (
             <>
               <Separator className="my-2" />
-              <Tooltip delayDuration={0}>
+              <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
@@ -382,7 +382,7 @@ export function Sidebar({
                   </Button>
                 </TooltipTrigger>
                 {collapsed && (
-                  <TooltipContent side="right">
+                  <TooltipContent>
                     Développer la barre latérale
                   </TooltipContent>
                 )}
