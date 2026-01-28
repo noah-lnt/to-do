@@ -1,80 +1,122 @@
-# Guide de déploiement : 2 VPS Debian + Synology NAS
+# Guide de déploiement : Serveur unique + Traefik externe + NAS Synology
 
 ## Architecture cible
 
 ```
-┌──────────────────────────────────────────────────────┐
-│                    INTERNET                          │
-│                       │                              │
-│               DNS: todo.example.com                  │
-│                       │                              │
-│  ┌────────────────────▼─────────────────────────┐    │
-│  │              VPS 1 (Primary)                  │    │
-│  │                                               │    │
-│  │  ┌─────────┐  ┌──────────┐  ┌────────────┐  │    │
-│  │  │ Traefik │──│ Next.js  │──│ PostgreSQL │  │    │
-│  │  │ :80/443 │  │ App      │  │ Primary    │  │    │
-│  │  └─────────┘  └──────────┘  └─────┬──────┘  │    │
-│  │                                    │          │    │
-│  │  ┌──────────────────┐    WAL stream│          │    │
-│  │  │ Backup Container │              │          │    │
-│  │  │ (cron 02:00)     │              │          │    │
-│  │  └────────┬─────────┘              │          │    │
-│  └───────────┼────────────────────────┼──────────┘    │
-│              │                        │               │
-│         rsync/SSH               Streaming             │
-│         (quotidien)            Replication             │
-│              │                   (temps réel)         │
-│              ▼                        ▼               │
-│  ┌───────────────────┐   ┌───────────────────────┐   │
-│  │   Synology NAS    │   │    VPS 2 (Replica)    │   │
-│  │                   │   │                       │   │
-│  │ /volume1/backups/ │   │  ┌─────────────────┐  │   │
-│  │   taskflow/       │   │  │   PostgreSQL    │  │   │
-│  │   ├── backup_..gz │   │  │   Hot Standby   │  │   │
-│  │   ├── backup_..gz │   │  │   (read-only)   │  │   │
-│  │   └── ...         │   │  └─────────────────┘  │   │
-│  └───────────────────┘   └───────────────────────┘   │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                        INTERNET                               │
+│                           │                                   │
+│                   DNS: todo.example.com                       │
+│                           │                                   │
+│  ┌────────────────────────▼────────────────────────────────┐ │
+│  │                   Serveur partagé                        │ │
+│  │                                                          │ │
+│  │  ┌─────────────────────────────────────────────────────┐│ │
+│  │  │         docker-compose.infra.yml (externe)          ││ │
+│  │  │  ┌──────────────┐        ┌──────────────────┐       ││ │
+│  │  │  │   Traefik    │        │   Uptime Kuma    │       ││ │
+│  │  │  │   :80/443    │        │   (monitoring)   │       ││ │
+│  │  │  └──────────────┘        └──────────────────┘       ││ │
+│  │  └─────────────────────────────────────────────────────┘│ │
+│  │                           │                              │ │
+│  │                    réseau "web"                          │ │
+│  │                           │                              │ │
+│  │  ┌────────────────────────▼────────────────────────────┐│ │
+│  │  │          docker-compose.prod.yml (ce projet)        ││ │
+│  │  │                                                     ││ │
+│  │  │  ┌──────────────┐  ┌─────────────┐  ┌───────────┐  ││ │
+│  │  │  │   Next.js    │──│ PostgreSQL  │──│  Backup   │  ││ │
+│  │  │  │     App      │  │     DB      │  │  (cron)   │  ││ │
+│  │  │  └──────────────┘  └─────────────┘  └─────┬─────┘  ││ │
+│  │  └───────────────────────────────────────────┼────────┘│ │
+│  └──────────────────────────────────────────────┼─────────┘ │
+│                                            rsync/SSH        │
+│                                           (quotidien)       │
+│                                                 │            │
+│                                                 ▼            │
+│                                    ┌────────────────────┐   │
+│                                    │   Synology NAS     │   │
+│                                    │                    │   │
+│                                    │ /volume1/backups/  │   │
+│                                    │   taskflow/        │   │
+│                                    │   ├── backup_..gz  │   │
+│                                    │   └── ...          │   │
+│                                    └────────────────────┘   │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-**Rôle de chaque serveur :**
+## Prérequis
 
-| Serveur | Rôle | Contient |
-|---|---|---|
-| VPS 1 | Primary | Traefik + App + PostgreSQL primary + Backups |
-| VPS 2 | Replica | PostgreSQL hot standby (copie temps réel) |
-| Synology | Stockage | Backups quotidiens (pg_dump compressés) |
+| Composant | Description |
+|---|---|
+| **Serveur** | VPS Debian 11+ avec Docker et Docker Compose |
+| **Traefik externe** | Instance Traefik partagée sur le même serveur |
+| **Réseau Docker `web`** | Réseau externe pour la communication avec Traefik |
+| **Uptime Kuma** | Monitoring externe (optionnel mais recommandé) |
+| **Synology NAS** | Pour les backups quotidiens via rsync/SSH |
 
 ---
 
-## Étape 1 : Préparer les VPS Debian
+## Étape 1 : Préparer le serveur
 
-Sur **chaque VPS** (en root) :
+### 1a. Installer Docker (si pas déjà fait)
 
 ```bash
-# Télécharger et exécuter le script de setup
-curl -fsSL https://raw.githubusercontent.com/<repo>/main/scripts/setup-vps.sh | bash
+# En tant que root
+curl -fsSL https://get.docker.com | bash
 
 # Créer un utilisateur de déploiement
 adduser deploy
 usermod -aG docker deploy
 ```
 
-### Firewall sur VPS 1 uniquement
+### 1b. Créer le réseau Docker externe
 
 ```bash
-# Autoriser le VPS2 à se connecter en replication
-ufw allow from <IP_VPS2> to any port 5432
+# Réseau partagé entre Traefik et les applications
+docker network create web
 ```
 
-### Firewall sur VPS 2
+### 1c. Configurer Traefik (si pas déjà fait)
+
+Exemple minimal de `docker-compose.infra.yml` pour Traefik :
+
+```yaml
+# /opt/infra/docker-compose.yml
+services:
+  traefik:
+    image: traefik:v3.2
+    restart: unless-stopped
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=web"
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=admin@example.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/letsencrypt
+    networks:
+      - web
+
+volumes:
+  traefik_certs:
+
+networks:
+  web:
+    external: true
+```
 
 ```bash
-# Pas besoin de ports publics (pas d'app web dessus)
-# Juste SSH
-ufw allow 22/tcp
-echo "y" | ufw enable
+cd /opt/infra && docker compose up -d
 ```
 
 ---
@@ -95,10 +137,10 @@ mkdir -p /volume1/backups/taskflow
 chown admin:users /volume1/backups/taskflow
 ```
 
-### 2c. Configurer la clé SSH (depuis VPS 1)
+### 2c. Configurer la clé SSH (depuis le serveur)
 
 ```bash
-# Sur le VPS 1, en tant que root :
+# Sur le serveur, en tant que root :
 ssh-keygen -t ed25519 -f /root/.ssh/id_ed25519_synology -N ""
 
 # Copier la clé publique sur le Synology
@@ -110,11 +152,11 @@ ssh -i /root/.ssh/id_ed25519_synology admin@<IP_SYNOLOGY> "ls /volume1/backups/"
 
 ---
 
-## Étape 3 : Déployer le VPS 1 (Primary)
+## Étape 3 : Déployer l'application
 
 ```bash
-# Se connecter au VPS1
-ssh deploy@<IP_VPS1>
+# Se connecter au serveur
+ssh deploy@<IP_SERVEUR>
 
 # Cloner le repo
 sudo git clone <REPO_URL> /opt/taskflow
@@ -122,28 +164,38 @@ sudo chown -R deploy:deploy /opt/taskflow
 cd /opt/taskflow
 
 # Configurer l'environnement
-cp deploy/env.vps1.example .env
+cp deploy/env.prod.example .env
 nano .env
 ```
 
-**Variables à modifier dans `.env` :**
+### Variables à configurer dans `.env` :
 
 ```bash
+# Générer des secrets aléatoires
 APP_DOMAIN="todo.votre-domaine.com"
 NEXTAUTH_SECRET="$(openssl rand -base64 32)"
 POSTGRES_PASSWORD="$(openssl rand -base64 24)"
-REPLICATION_PASSWORD="$(openssl rand -base64 24)"
-ACME_EMAIL="votre@email.com"
+
+# Configurer le backup vers Synology
+RSYNC_ENABLED="true"
 RSYNC_TARGET="admin@<IP_SYNOLOGY>:/volume1/backups/taskflow"
 SSH_KEY_PATH="/root/.ssh/id_ed25519_synology"
+
+# Optionnel : emails (SMTP)
+SMTP_HOST="smtp.example.com"
+SMTP_USER="noreply@example.com"
+SMTP_PASSWORD="votre-mot-de-passe"
+SMTP_FROM="TaskFlow <noreply@example.com>"
 ```
 
+### Lancer l'application
+
 ```bash
-# Lancer la stack
-docker compose -f docker-compose.vps1.yml up -d --build
+# Démarrer la stack
+docker compose -f docker-compose.prod.yml up -d --build
 
 # Vérifier que tout tourne
-docker compose -f docker-compose.vps1.yml ps
+docker compose -f docker-compose.prod.yml ps
 
 # Initialiser la base de données
 docker exec todo-app npx prisma db push
@@ -157,62 +209,19 @@ docker exec todo-backup /usr/local/bin/backup.sh
 
 ---
 
-## Étape 4 : Déployer le VPS 2 (Replica)
+## Étape 4 : Vérifier que tout fonctionne
+
+### Test de l'application
 
 ```bash
-# Se connecter au VPS2
-ssh deploy@<IP_VPS2>
+# L'application devrait être accessible sur
+https://todo.votre-domaine.com
 
-# Cloner le repo
-sudo git clone <REPO_URL> /opt/taskflow
-sudo chown -R deploy:deploy /opt/taskflow
-cd /opt/taskflow
-
-# Configurer l'environnement
-cp deploy/env.vps2.example .env
-nano .env
+# Vérifier les logs
+docker compose -f docker-compose.prod.yml logs -f app
 ```
 
-**Variables à modifier dans `.env` :**
-
-```bash
-POSTGRES_PASSWORD="<même mot de passe que VPS1>"
-PRIMARY_HOST="<IP_PUBLIQUE_DU_VPS1>"
-REPLICATION_PASSWORD="<même mot de passe que VPS1>"
-```
-
-```bash
-# Lancer le replica
-docker compose -f docker-compose.vps2.yml up -d
-
-# Vérifier la replication (attendre ~30s)
-docker exec todo-db-replica psql -U postgres -c "SELECT pg_is_in_recovery();"
-# Doit afficher: t (true = replica mode)
-
-# Vérifier les données sont bien répliquées
-docker exec todo-db-replica psql -U postgres -d todoapp -c "SELECT count(*) FROM \"User\";"
-```
-
----
-
-## Étape 5 : Vérifier que tout fonctionne
-
-### Depuis le VPS 1 :
-
-```bash
-# Statut de la réplication
-cd /opt/taskflow
-
-# Vérifier les connexions de replication
-docker exec todo-db-primary psql -U postgres -c \
-  "SELECT client_addr, state, sent_lsn, replay_lsn,
-   pg_size_pretty(pg_wal_lsn_diff(sent_lsn, replay_lsn)) AS lag
-   FROM pg_stat_replication;"
-```
-
-Vous devez voir l'IP du VPS2 avec `state = streaming` et un `lag` quasi nul.
-
-### Tester le backup vers Synology :
+### Test du backup vers Synology
 
 ```bash
 # Backup manuel
@@ -229,14 +238,13 @@ ssh admin@<IP_SYNOLOGY> "ls -lh /volume1/backups/taskflow/"
 ### Backup manuel
 
 ```bash
-# Depuis le VPS1
 docker exec todo-backup /usr/local/bin/backup.sh
 ```
 
 ### Lister les backups
 
 ```bash
-# Locaux (VPS1)
+# Locaux (sur le serveur)
 docker exec todo-backup ls -lh /backups/
 
 # Sur le Synology
@@ -255,46 +263,30 @@ docker cp /tmp/backup_todoapp_20260128_020000.sql.gz todo-backup:/backups/
 docker exec todo-backup /usr/local/bin/restore.sh backup_todoapp_20260128_020000.sql.gz
 ```
 
-### Consulter les logs de backup
+### Consulter les logs
 
 ```bash
-docker logs todo-backup --tail 100
+# Tous les services
+docker compose -f docker-compose.prod.yml logs -f
+
+# Un service spécifique
+docker compose -f docker-compose.prod.yml logs -f app
+docker compose -f docker-compose.prod.yml logs -f db
+docker compose -f docker-compose.prod.yml logs -f backup
 ```
-
----
-
-## Failover (en cas de panne du VPS 1)
-
-Si le VPS 1 tombe, vous pouvez promouvoir le VPS 2 :
-
-```bash
-# Sur le VPS 2 :
-cd /opt/taskflow
-bash scripts/promote-replica.sh
-```
-
-Ensuite :
-
-1. **Modifier le DNS** de `todo.votre-domaine.com` → IP du VPS 2
-2. **Copier l'app** sur le VPS 2 et la lancer :
-   ```bash
-   cp deploy/env.vps1.example .env
-   # Modifier .env avec DATABASE_URL pointant vers localhost
-   docker compose -f docker-compose.vps1.yml up -d app traefik
-   ```
-3. **Quand le VPS 1 sera réparé**, le reconfigurer comme replica du VPS 2
 
 ---
 
 ## Mise à jour de l'application
 
 ```bash
-# Sur le VPS 1
 cd /opt/taskflow
+
+# Récupérer les dernières modifications
 git pull origin main
 
 # Rebuild et redémarrage
-docker compose -f docker-compose.vps1.yml up -d --build app
+docker compose -f docker-compose.prod.yml up -d --build app
 
 # Appliquer les migrations Prisma si nécessaire
 docker exec todo-app npx prisma db push
@@ -302,24 +294,54 @@ docker exec todo-app npx prisma db push
 
 ---
 
-## Monitoring recommandé
+## Monitoring
 
-Pour un setup production, pensez à ajouter :
+### Avec Uptime Kuma (recommandé)
 
-- **Uptime monitoring** : UptimeRobot, Hetrixtools (gratuit)
-- **Alertes disque** : notification si le VPS dépasse 80% de stockage
-- **Alertes replication** : cron qui vérifie le lag et alerte si > 1 min
-- **Alertes backup** : vérifier que le dernier backup a moins de 25h
+Si vous avez Uptime Kuma sur le même serveur ou ailleurs :
 
-Exemple de script d'alerte replication (à mettre en cron sur VPS1) :
+1. Ajouter un monitor HTTP(s) : `https://todo.votre-domaine.com`
+2. Configurer les alertes (email, Discord, Telegram, etc.)
+
+### Vérification des backups
+
+Créer un cron pour vérifier que les backups récents existent :
 
 ```bash
-#!/bin/bash
-LAG=$(docker exec todo-db-primary psql -U postgres -tAc \
-  "SELECT EXTRACT(EPOCH FROM now() - pg_last_xact_replay_timestamp())
-   FROM pg_stat_replication LIMIT 1;" 2>/dev/null || echo "999")
+# /etc/cron.d/check-taskflow-backup
+0 9 * * * root test $(find /opt/taskflow-backups -name "*.sql.gz" -mtime -1 | wc -l) -gt 0 || echo "ALERTE: Pas de backup TaskFlow depuis 24h" | mail -s "TaskFlow backup alert" admin@example.com
+```
 
-if [ "${LAG%.*}" -gt 60 ]; then
-  echo "ALERTE: Replication lag = ${LAG}s" | mail -s "TaskFlow: replication lag" admin@example.com
-fi
+---
+
+## Troubleshooting
+
+### L'app ne démarre pas
+
+```bash
+# Vérifier les logs
+docker compose -f docker-compose.prod.yml logs app
+
+# Vérifier que la DB est prête
+docker compose -f docker-compose.prod.yml logs db
+```
+
+### Problème de certificat SSL
+
+```bash
+# Vérifier les logs Traefik
+docker logs traefik --tail 100
+
+# Vérifier que le domaine pointe vers le serveur
+dig todo.votre-domaine.com
+```
+
+### Backup ne fonctionne pas
+
+```bash
+# Tester manuellement
+docker exec todo-backup /usr/local/bin/backup.sh
+
+# Vérifier la connexion SSH au Synology
+docker exec todo-backup ssh -i /root/.ssh/id_ed25519 admin@<IP_SYNOLOGY> "ls /volume1/backups/"
 ```

@@ -1,33 +1,18 @@
 # =============================================
-# VPS 1 — Primary (Traefik + App + DB + Backup)
+# Production — Single Server (App + DB + Backup)
 # =============================================
-# Usage: docker compose -f docker-compose.vps1.yml up -d --build
+# Traefik is externalized and shared between multiple apps
+# Usage: docker compose -f docker-compose.prod.yml up -d --build
+#
+# Prerequisites:
+#   - External Traefik instance running on the same server
+#   - External "web" network created: docker network create web
+#
+# Architecture:
+#   [External Traefik] ──► [app] ──► [db]
+#                                  └──► [backup] ──► NAS (rsync)
 
 services:
-  traefik:
-    image: traefik:v3.2
-    container_name: traefik
-    restart: unless-stopped
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entryPoints.web.address=:80"
-      - "--entryPoints.websecure.address=:443"
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.com}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-      - "--log.level=INFO"
-    ports:
-      - "80:80"
-      - "443:443"
-      - "127.0.0.1:8080:8080"  # Dashboard accessible localement uniquement
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_certs:/letsencrypt
-    networks:
-      - web
-
   app:
     build:
       context: .
@@ -35,7 +20,7 @@ services:
     container_name: todo-app
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db-primary:5432/${POSTGRES_DB:-todoapp}?schema=public
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-todoapp}?schema=public
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=https://${APP_DOMAIN}
       - SMTP_HOST=${SMTP_HOST:-}
@@ -46,7 +31,7 @@ services:
       - SMTP_FROM=${SMTP_FROM:-}
       - CRON_SECRET=${CRON_SECRET:-}
     depends_on:
-      db-primary:
+      db:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
@@ -64,28 +49,21 @@ services:
       - web
       - internal
 
-  db-primary:
+  db:
     image: postgres:16-alpine
-    container_name: todo-db-primary
+    container_name: todo-db
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB:-todoapp}
-      - REPLICATION_USER=${REPLICATION_USER:-replicator}
-      - REPLICATION_PASSWORD=${REPLICATION_PASSWORD}
     volumes:
-      - postgres_primary_data:/var/lib/postgresql/data
-      - postgres_wal_archive:/var/lib/postgresql/wal_archive
-      - ./docker/postgres-primary/init-replication.sh:/docker-entrypoint-initdb.d/init-replication.sh:ro
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
-    # Port 5432 exposé uniquement au VPS2 via le firewall
-    ports:
-      - "${REPLICATION_BIND:-0.0.0.0}:5432:5432"
     networks:
       - internal
 
@@ -96,13 +74,13 @@ services:
     container_name: todo-backup
     restart: unless-stopped
     environment:
-      - DB_HOST=db-primary
+      - DB_HOST=db
       - DB_PORT=5432
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB:-todoapp}
       - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
-      # S3 (MinIO sur Synology ou AWS)
+      # S3 (MinIO on Synology or AWS)
       - S3_ENABLED=${S3_ENABLED:-false}
       - S3_BUCKET=${S3_BUCKET:-}
       - S3_PREFIX=${S3_PREFIX:-postgres-backups}
@@ -115,22 +93,22 @@ services:
       - RSYNC_TARGET=${RSYNC_TARGET:-}
     volumes:
       - backup_data:/backups
-      # Monter la clé SSH pour rsync vers Synology
+      # Mount SSH key for rsync to Synology NAS
       - ${SSH_KEY_PATH:-/dev/null}:/root/.ssh/id_ed25519:ro
     depends_on:
-      db-primary:
+      db:
         condition: service_healthy
     networks:
       - internal
 
 volumes:
-  traefik_certs:
-  postgres_primary_data:
-  postgres_wal_archive:
+  postgres_data:
   backup_data:
 
 networks:
+  # External network managed by Traefik
   web:
-    driver: bridge
+    external: true
+  # Internal network for app ↔ db communication
   internal:
     driver: bridge
