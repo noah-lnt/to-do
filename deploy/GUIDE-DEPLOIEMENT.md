@@ -191,13 +191,13 @@ SMTP_FROM="TaskFlow <noreply@example.com>"
 ### Lancer l'application
 
 ```bash
-# Démarrer la stack
+# Démarrer la stack (prisma db push s'exécute automatiquement au démarrage)
 docker compose -f docker-compose.prod.yml up -d --build
 
 # Vérifier que tout tourne
 docker compose -f docker-compose.prod.yml ps
 
-# Initialiser la base de données
+# (Optionnel) Forcer la synchronisation de la base de données
 docker exec todo-app npx prisma db push
 
 # (Optionnel) Charger les données de démo
@@ -285,10 +285,10 @@ cd /opt/taskflow
 # Récupérer les dernières modifications
 git pull origin main
 
-# Rebuild et redémarrage
+# Rebuild et redémarrage (prisma db push s'exécute automatiquement)
 docker compose -f docker-compose.prod.yml up -d --build app
 
-# Appliquer les migrations Prisma si nécessaire
+# (Optionnel) Forcer la synchronisation Prisma manuellement
 docker exec todo-app npx prisma db push
 ```
 
