@@ -12,6 +12,7 @@ const preferencesSchema = z.object({
   emailNotifications: z.boolean().optional(),
   timezone: z.string().optional(),
   language: z.string().optional(),
+  savedNotifyEmails: z.array(z.string().email()).optional(),
 })
 
 export async function GET() {

@@ -56,6 +56,8 @@ model UserPreferences {
   // Display preferences
   timezone              String   @default("Europe/Paris")
   language              String   @default("fr")
+  // Saved notification contacts
+  savedNotifyEmails     String[] @default([])
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }

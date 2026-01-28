@@ -85,6 +85,22 @@ export async function PATCH(
     if (data.notifyOnComplete !== undefined) updateData.notifyOnComplete = data.notifyOnComplete
     if (data.notifyEmail !== undefined) updateData.notifyEmail = data.notifyEmail || null
 
+    // Auto-save notify email to user preferences if new
+    if (data.notifyEmail && data.notifyOnComplete) {
+      const prefs = await prisma.userPreferences.findUnique({
+        where: { userId: user.id },
+      })
+      const savedEmails = prefs?.savedNotifyEmails || []
+
+      if (!savedEmails.includes(data.notifyEmail)) {
+        await prisma.userPreferences.upsert({
+          where: { userId: user.id },
+          update: { savedNotifyEmails: [...savedEmails, data.notifyEmail] },
+          create: { userId: user.id, savedNotifyEmails: [data.notifyEmail] },
+        })
+      }
+    }
+
     // Handle status change
     if (data.status !== undefined) {
       updateData.status = data.status

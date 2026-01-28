@@ -25,9 +25,10 @@ interface TaskDialogProps {
   task?: Task | null
   categories: Category[]
   onSave: (data: Partial<Task>) => Promise<void>
+  savedNotifyEmails?: string[]
 }
 
-export function TaskDialog({ open, onOpenChange, task, categories, onSave }: TaskDialogProps) {
+export function TaskDialog({ open, onOpenChange, task, categories, onSave, savedNotifyEmails = [] }: TaskDialogProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState<Task["priority"]>("MEDIUM")
@@ -286,10 +287,16 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
                 <Input
                   id="notifyEmail"
                   type="email"
+                  list="saved-notify-emails"
                   value={notifyEmail}
                   onChange={(e) => setNotifyEmail(e.target.value)}
-                  placeholder="exemple@email.com"
+                  placeholder="Sélectionner ou saisir un email"
                 />
+                <datalist id="saved-notify-emails">
+                  {savedNotifyEmails.map((email) => (
+                    <option key={email} value={email} />
+                  ))}
+                </datalist>
                 <p className="text-xs text-muted-foreground">
                   Cette personne recevra un email lorsque la tâche sera terminée.
                 </p>

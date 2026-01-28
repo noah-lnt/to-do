@@ -76,9 +76,27 @@ export async function POST(request: NextRequest) {
         recurrencePattern: data.recurrencePattern || null,
         recurrenceInterval: data.recurrenceInterval || null,
         recurrenceEndDate: data.recurrenceEndDate ? new Date(data.recurrenceEndDate) : null,
+        notifyOnComplete: data.notifyOnComplete || false,
+        notifyEmail: data.notifyEmail || null,
       },
       include: { category: true },
     })
+
+    // Auto-save notify email to user preferences if new
+    if (data.notifyEmail && data.notifyOnComplete) {
+      const prefs = await prisma.userPreferences.findUnique({
+        where: { userId: user.id },
+      })
+      const savedEmails = prefs?.savedNotifyEmails || []
+
+      if (!savedEmails.includes(data.notifyEmail)) {
+        await prisma.userPreferences.upsert({
+          where: { userId: user.id },
+          update: { savedNotifyEmails: [...savedEmails, data.notifyEmail] },
+          create: { userId: user.id, savedNotifyEmails: [data.notifyEmail] },
+        })
+      }
+    }
 
     return NextResponse.json(task, { status: 201 })
   } catch (error) {

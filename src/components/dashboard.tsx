@@ -85,12 +85,33 @@ export function Dashboard() {
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
   const [reminderTask, setReminderTask] = useState<Task | null>(null)
 
+  // Saved notification emails
+  const [savedNotifyEmails, setSavedNotifyEmails] = useState<string[]>([])
+
   // Mobile sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // Fetch saved notify emails
+  const fetchSavedEmails = useCallback(async () => {
+    try {
+      const res = await fetch("/api/preferences")
+      if (res.ok) {
+        const prefs = await res.json()
+        setSavedNotifyEmails(prefs.savedNotifyEmails || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch saved emails:", error)
+    }
+  }, [])
+
+  // Load saved emails on mount
+  useEffect(() => {
+    fetchSavedEmails()
+  }, [fetchSavedEmails])
+
   const refreshData = useCallback(async () => {
-    await Promise.all([fetchTasks(), fetchStats(), fetchCategories()])
-  }, [fetchTasks, fetchStats, fetchCategories])
+    await Promise.all([fetchTasks(), fetchStats(), fetchCategories(), fetchSavedEmails()])
+  }, [fetchTasks, fetchStats, fetchCategories, fetchSavedEmails])
 
   const handleCreateTask = async (data: Partial<Task>) => {
     await createTask(data)
@@ -298,6 +319,7 @@ export function Dashboard() {
         task={editingTask}
         categories={categories}
         onSave={editingTask ? handleUpdateTask : handleCreateTask}
+        savedNotifyEmails={savedNotifyEmails}
       />
 
       {/* Reminder dialog */}
