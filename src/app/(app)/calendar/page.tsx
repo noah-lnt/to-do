@@ -13,26 +13,22 @@ import {
   addMonths,
   subMonths,
   isSameMonth,
-  isSameDay,
   isToday,
 } from "date-fns"
 import { fr } from "date-fns/locale"
 import {
-  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   Loader2,
   CheckCircle2,
   Circle,
   Clock,
-  AlertTriangle,
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface DayStat {
   total: number
@@ -141,7 +137,7 @@ function DayCell({
 }
 
 export default function CalendarPage() {
-  const { user, loading: authLoading } = useAuth()
+  const { user } = useAuth()
   const router = useRouter()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null)
@@ -149,12 +145,6 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTasks, setSelectedTasks] = useState<any[]>([])
   const [selectedLoading, setSelectedLoading] = useState(false)
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login")
-    }
-  }, [user, authLoading, router])
 
   const fetchCalendar = useCallback(async () => {
     try {
@@ -207,14 +197,6 @@ export default function CalendarPage() {
     setSelectedDate(null)
   }
 
-  if (authLoading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
   // Build calendar grid
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
@@ -248,25 +230,19 @@ export default function CalendarPage() {
     : 0
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl p-4 md:p-6 lg:p-8 space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Link href="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">Calendrier</h1>
-            <p className="text-sm text-muted-foreground">Vue mensuelle de vos tâches</p>
-          </div>
-          <Link href="/today">
-            <Button variant="outline" size="sm">
-              Aujourd&apos;hui
-            </Button>
-          </Link>
+    <div className="mx-auto max-w-4xl p-4 md:p-6 lg:p-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Calendrier</h1>
+          <p className="text-sm text-muted-foreground">Vue mensuelle de vos taches</p>
         </div>
+        <Link href="/today">
+          <Button variant="outline" size="sm">
+            Aujourd'hui
+          </Button>
+        </Link>
+      </div>
 
         {/* Month navigation */}
         <Card>
@@ -409,7 +385,6 @@ export default function CalendarPage() {
             </CardContent>
           </Card>
         )}
-      </div>
     </div>
   )
 }

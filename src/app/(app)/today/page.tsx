@@ -1,28 +1,25 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import {
-  ArrowLeft,
   CheckCircle2,
   Circle,
   Clock,
   Loader2,
   AlertTriangle,
   Trophy,
-  Pencil,
   Trash2,
   MoreHorizontal,
   ArrowRight,
-  Bell,
+  Repeat,
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -32,7 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { PRIORITY_CONFIG, STATUS_CONFIG } from "@/lib/types"
+import { PRIORITY_CONFIG, STATUS_CONFIG, RECURRENCE_CONFIG } from "@/lib/types"
 import type { Task } from "@/lib/types"
 
 interface TodayStats {
@@ -160,6 +157,12 @@ function TodayTaskCard({
               En retard
             </Badge>
           )}
+          {task.recurrenceType && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+              <Repeat className="mr-1 h-3 w-3" />
+              {RECURRENCE_CONFIG[task.recurrenceType].label}
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -200,17 +203,10 @@ function TodayTaskCard({
 }
 
 export default function TodayPage() {
-  const { user, loading: authLoading } = useAuth()
-  const router = useRouter()
+  const { user } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
   const [stats, setStats] = useState<TodayStats>({ total: 0, done: 0, percentage: 0 })
   const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login")
-    }
-  }, [user, authLoading, router])
 
   const fetchToday = useCallback(async () => {
     try {
@@ -260,34 +256,18 @@ export default function TodayPage() {
     }
   }
 
-  if (authLoading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
   const todoTasks = tasks.filter((t) => t.status === "TODO")
   const inProgressTasks = tasks.filter((t) => t.status === "IN_PROGRESS")
   const doneTasks = tasks.filter((t) => t.status === "DONE")
   const todayStr = format(new Date(), "EEEE d MMMM yyyy", { locale: fr })
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-3xl p-4 md:p-6 lg:p-8 space-y-8">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Link href="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold capitalize">Aujourd&apos;hui</h1>
-            <p className="text-sm text-muted-foreground capitalize">{todayStr}</p>
-          </div>
-        </div>
+    <div className="mx-auto max-w-3xl p-4 md:p-6 lg:p-8 space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold capitalize">Aujourd&apos;hui</h1>
+        <p className="text-sm text-muted-foreground capitalize">{todayStr}</p>
+      </div>
 
         {loading ? (
           <div className="flex justify-center py-12">
@@ -417,7 +397,6 @@ export default function TodayPage() {
             )}
           </>
         )}
-      </div>
     </div>
   )
 }

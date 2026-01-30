@@ -73,8 +73,16 @@ export async function POST(request: NextRequest) {
         categoryId: data.categoryId || null,
         position: (maxPosition._max.position ?? -1) + 1,
         userId: user.id,
+        // Recurrence
+        recurrenceType: data.recurrenceType || null,
+        recurrenceInterval: data.recurrenceInterval || 1,
+        recurrenceDays: data.recurrenceDays || [],
+        recurrenceEndDate: data.recurrenceEndDate ? new Date(data.recurrenceEndDate) : null,
+        // Group & Assignment
+        groupId: data.groupId || null,
+        assigneeId: data.assigneeId || null,
       },
-      include: { category: true },
+      include: { category: true, group: true, assignee: { select: { id: true, name: true, email: true } } },
     })
 
     return NextResponse.json(task, { status: 201 })

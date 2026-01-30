@@ -13,7 +13,7 @@ export async function GET(
 
     const task = await prisma.task.findFirst({
       where: { id, userId: user.id },
-      include: { category: true },
+      include: { category: true, group: true, assignee: { select: { id: true, name: true, email: true } } },
     })
 
     if (!task) {
@@ -62,11 +62,19 @@ export async function PATCH(
     if (data.dueDate !== undefined) updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null
     if (data.categoryId !== undefined) updateData.categoryId = data.categoryId || null
     if (data.position !== undefined) updateData.position = data.position
+    // Recurrence fields
+    if (data.recurrenceType !== undefined) updateData.recurrenceType = data.recurrenceType || null
+    if (data.recurrenceInterval !== undefined) updateData.recurrenceInterval = data.recurrenceInterval || 1
+    if (data.recurrenceDays !== undefined) updateData.recurrenceDays = data.recurrenceDays || []
+    if (data.recurrenceEndDate !== undefined) updateData.recurrenceEndDate = data.recurrenceEndDate ? new Date(data.recurrenceEndDate) : null
+    // Group & Assignment
+    if (data.groupId !== undefined) updateData.groupId = data.groupId || null
+    if (data.assigneeId !== undefined) updateData.assigneeId = data.assigneeId || null
 
     const task = await prisma.task.update({
       where: { id },
       data: updateData,
-      include: { category: true },
+      include: { category: true, group: true, assignee: { select: { id: true, name: true, email: true } } },
     })
 
     return NextResponse.json(task)

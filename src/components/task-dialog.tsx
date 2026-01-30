@@ -14,7 +14,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
-import type { Task, Category } from "@/lib/types"
+import { RecurrenceSelector } from "@/components/recurrence-selector"
+import type { Task, Category, RecurrenceType } from "@/lib/types"
 
 interface TaskDialogProps {
   open: boolean
@@ -32,6 +33,11 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
   const [dueDate, setDueDate] = useState("")
   const [categoryId, setCategoryId] = useState("")
   const [loading, setLoading] = useState(false)
+  // Recurrence state
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType | null>(null)
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1)
+  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([])
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState<string | null>(null)
 
   const isEditing = !!task
 
@@ -43,6 +49,10 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
       setStatus(task.status)
       setDueDate(task.dueDate ? task.dueDate.split("T")[0] : "")
       setCategoryId(task.categoryId || "")
+      setRecurrenceType(task.recurrenceType || null)
+      setRecurrenceInterval(task.recurrenceInterval || 1)
+      setRecurrenceDays(task.recurrenceDays || [])
+      setRecurrenceEndDate(task.recurrenceEndDate ? task.recurrenceEndDate.split("T")[0] : null)
     } else {
       setTitle("")
       setDescription("")
@@ -50,6 +60,10 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
       setStatus("TODO")
       setDueDate("")
       setCategoryId("")
+      setRecurrenceType(null)
+      setRecurrenceInterval(1)
+      setRecurrenceDays([])
+      setRecurrenceEndDate(null)
     }
   }, [task, open])
 
@@ -66,6 +80,10 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
         status,
         dueDate: dueDate || null,
         categoryId: categoryId || null,
+        recurrenceType,
+        recurrenceInterval,
+        recurrenceDays,
+        recurrenceEndDate,
       })
       onOpenChange(false)
     } catch (err) {
@@ -73,6 +91,18 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleRecurrenceChange = (data: {
+    recurrenceType: RecurrenceType | null
+    recurrenceInterval: number
+    recurrenceDays: number[]
+    recurrenceEndDate: string | null
+  }) => {
+    setRecurrenceType(data.recurrenceType)
+    setRecurrenceInterval(data.recurrenceInterval)
+    setRecurrenceDays(data.recurrenceDays)
+    setRecurrenceEndDate(data.recurrenceEndDate)
   }
 
   return (
@@ -148,7 +178,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Catégorie</Label>
+              <Label htmlFor="category">Categorie</Label>
               <Select
                 value={categoryId}
                 onValueChange={setCategoryId}
@@ -162,6 +192,14 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
               </Select>
             </div>
           </div>
+
+          <RecurrenceSelector
+            recurrenceType={recurrenceType}
+            recurrenceInterval={recurrenceInterval}
+            recurrenceDays={recurrenceDays}
+            recurrenceEndDate={recurrenceEndDate}
+            onChange={handleRecurrenceChange}
+          />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

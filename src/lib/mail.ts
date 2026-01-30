@@ -15,6 +15,16 @@ const transporter = nodemailer.createTransport({
 const FROM = process.env.SMTP_FROM || "TaskFlow <noreply@taskflow.app>"
 const APP_URL = process.env.NEXTAUTH_URL || "http://localhost:3000"
 
+// Generic email sender
+export async function sendEmail(options: { to: string; subject: string; html: string }) {
+  await transporter.sendMail({
+    from: FROM,
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+  })
+}
+
 export async function sendVerificationEmail(email: string, token: string) {
   const verifyUrl = `${APP_URL}/verify-email?token=${token}`
 

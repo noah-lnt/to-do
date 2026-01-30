@@ -20,6 +20,12 @@ model User {
   tokens          Token[]
   preferences     UserPreferences?
   reminders       Reminder[]
+  // Groups
+  ownedGroups     Group[]        @relation("GroupOwner")
+  groupMemberships GroupMember[]
+  assignedTasks   Task[]         @relation("TaskAssignee")
+  sentInvitations GroupInvitation[] @relation("InvitationSender")
+  receivedInvitations GroupInvitation[] @relation("InvitationRecipient")
 }
 
 model Token {
@@ -110,6 +116,19 @@ model Task {
   categoryId  String?
   category    Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   reminders   Reminder[]
+  // Recurrence
+  recurrenceType     RecurrenceType?
+  recurrenceInterval Int?            @default(1)
+  recurrenceEndDate  DateTime?
+  recurrenceDays     Int[]           @default([]) // For weekly: 0=Sun, 1=Mon, etc.
+  parentTaskId       String?
+  parentTask         Task?           @relation("TaskRecurrence", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  childTasks         Task[]          @relation("TaskRecurrence")
+  // Group & Assignment
+  groupId            String?
+  group              Group?          @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  assigneeId         String?
+  assignee           User?           @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -117,6 +136,9 @@ model Task {
   @@index([userId, priority])
   @@index([userId, dueDate])
   @@index([userId, categoryId])
+  @@index([groupId])
+  @@index([assigneeId])
+  @@index([parentTaskId])
 }
 
 enum TaskStatus {
@@ -130,4 +152,76 @@ enum Priority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum RecurrenceType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+// Groups for team collaboration
+model Group {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  color       String        @default("#6366f1")
+  ownerId     String
+  owner       User          @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  tasks       Task[]
+  invitations GroupInvitation[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([ownerId])
+}
+
+model GroupMember {
+  id        String          @id @default(cuid())
+  groupId   String
+  group     Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      GroupRole       @default(MEMBER)
+  joinedAt  DateTime        @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+enum GroupRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model GroupInvitation {
+  id           String           @id @default(cuid())
+  groupId      String
+  group        Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  email        String
+  token        String           @unique @default(cuid())
+  status       InvitationStatus @default(PENDING)
+  senderId     String
+  sender       User             @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId  String?
+  recipient    User?            @relation("InvitationRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+  expiresAt    DateTime
+  createdAt    DateTime         @default(now())
+  respondedAt  DateTime?
+
+  @@index([groupId])
+  @@index([email])
+  @@index([token])
+  @@index([recipientId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
 }
