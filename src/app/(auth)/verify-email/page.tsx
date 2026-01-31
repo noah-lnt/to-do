@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { CheckSquare, CheckCircle2, XCircle, Loader2 } from "lucide-react"
 
 function VerifyEmailContent() {
@@ -64,9 +63,12 @@ function VerifyEmailContent() {
               <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
             <p className="text-sm text-muted-foreground">{message}</p>
-            <Button asChild className="w-full">
-              <Link href="/">Accéder à TaskFlow</Link>
-            </Button>
+            <Link
+              href="/"
+              className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+            >
+              Accéder à TaskFlow
+            </Link>
           </>
         )}
 
@@ -76,9 +78,12 @@ function VerifyEmailContent() {
               <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
             </div>
             <p className="text-sm text-destructive">{message}</p>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/login">Retour à la connexion</Link>
-            </Button>
+            <Link
+              href="/login"
+              className="inline-flex w-full items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
+            >
+              Retour à la connexion
+            </Link>
           </>
         )}
       </CardContent>

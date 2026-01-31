@@ -97,7 +97,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Non autorise" }, { status: 401 })
     }
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Donnees invalides", details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Donnees invalides", details: error.issues }, { status: 400 })
     }
     console.error("Update group error:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })

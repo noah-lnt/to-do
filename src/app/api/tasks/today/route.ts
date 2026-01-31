@@ -37,7 +37,7 @@ export async function GET() {
     })
 
     const total = tasks.length
-    const done = tasks.filter((t) => t.status === "DONE").length
+    const done = tasks.filter((t: { status: string }) => t.status === "DONE").length
     const percentage = total > 0 ? Math.round((done / total) * 100) : 0
 
     return NextResponse.json({

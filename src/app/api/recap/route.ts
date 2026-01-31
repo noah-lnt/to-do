@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         await sendDailyRecapEmail(
           pref.user.email,
           pref.user.name || "",
-          tasks.map((t) => ({
+          tasks.map((t: { title: string; priority: string; dueDate: Date | null; status: string }) => ({
             title: t.title,
             priority: t.priority,
             dueDate: t.dueDate?.toISOString() || null,
