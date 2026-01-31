@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { AppSidebar } from "@/components/app-sidebar"
-import { Loader2 } from "lucide-react"
+import { Loader2, Menu } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { useCategories } from "@/hooks/use-categories"
 import { useGroups } from "@/hooks/use-groups"
 
@@ -55,6 +56,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      {/* Mobile header with menu button */}
+      <div className="fixed top-0 left-0 right-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 lg:hidden">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setMobileSidebarOpen(true)}
+        >
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Ouvrir le menu</span>
+        </Button>
+        <span className="font-semibold">TaskFlow</span>
+      </div>
+
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
         <div
@@ -79,7 +93,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       />
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pt-14 lg:pt-0">
         {children}
       </main>
     </div>
