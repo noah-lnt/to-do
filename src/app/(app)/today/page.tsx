@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useAuth } from "@/components/auth-provider"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -15,6 +15,8 @@ import {
   MoreHorizontal,
   ArrowRight,
   Repeat,
+  EyeOff,
+  Eye,
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -22,6 +24,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -202,18 +206,49 @@ function TodayTaskCard({
   )
 }
 
+const HIDE_COMPLETED_KEY = "taskflow-today-hide-completed"
+
 export default function TodayPage() {
   const { user } = useAuth()
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [rawTasks, setRawTasks] = useState<Task[]>([])
   const [stats, setStats] = useState<TodayStats>({ total: 0, done: 0, percentage: 0 })
   const [loading, setLoading] = useState(true)
+  const [hideCompleted, setHideCompleted] = useState(false)
+
+  // Load hide completed preference from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(HIDE_COMPLETED_KEY)
+      if (stored === "true") setHideCompleted(true)
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [])
+
+  // Save hide completed preference to localStorage
+  const handleHideCompletedChange = (value: boolean) => {
+    setHideCompleted(value)
+    try {
+      localStorage.setItem(HIDE_COMPLETED_KEY, String(value))
+    } catch {
+      // Ignore localStorage errors
+    }
+  }
+
+  // Filter tasks based on hideCompleted
+  const tasks = useMemo(() => {
+    if (hideCompleted) {
+      return rawTasks.filter((t) => t.status !== "DONE")
+    }
+    return rawTasks
+  }, [rawTasks, hideCompleted])
 
   const fetchToday = useCallback(async () => {
     try {
       const res = await fetch("/api/tasks/today")
       if (!res.ok) return
       const data = await res.json()
-      setTasks(data.tasks)
+      setRawTasks(data.tasks)
       setStats(data.stats)
     } catch (err) {
       console.error("Failed to fetch today data:", err)
@@ -227,7 +262,7 @@ export default function TodayPage() {
   }, [user, fetchToday])
 
   const handleToggle = async (id: string) => {
-    const task = tasks.find((t) => t.id === id)
+    const task = rawTasks.find((t) => t.id === id)
     if (!task) return
     const newStatus = task.status === "DONE" ? "TODO" : "DONE"
     await handleStatusChange(id, newStatus)
@@ -264,9 +299,22 @@ export default function TodayPage() {
   return (
     <div className="mx-auto max-w-3xl p-4 md:p-6 lg:p-8 space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold capitalize">Aujourd&apos;hui</h1>
-        <p className="text-sm text-muted-foreground capitalize">{todayStr}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold capitalize">Aujourd&apos;hui</h1>
+          <p className="text-sm text-muted-foreground capitalize">{todayStr}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="hide-completed-today"
+            checked={hideCompleted}
+            onCheckedChange={handleHideCompletedChange}
+          />
+          <Label htmlFor="hide-completed-today" className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1.5">
+            {hideCompleted ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">Masquer terminées</span>
+          </Label>
+        </div>
       </div>
 
         {loading ? (
@@ -376,7 +424,7 @@ export default function TodayPage() {
                 )}
 
                 {/* Done */}
-                {doneTasks.length > 0 && (
+                {!hideCompleted && doneTasks.length > 0 && (
                   <div className="space-y-3">
                     <h2 className="flex items-center gap-2 text-sm font-semibold text-green-600 dark:text-green-400">
                       <CheckCircle2 className="h-4 w-4" />

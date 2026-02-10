@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
-import { Plus, Menu, X } from "lucide-react"
+import { useState, useCallback, useEffect, useMemo } from "react"
+import { Plus, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sidebar } from "@/components/sidebar"
 import { StatsCards } from "@/components/stats-cards"
@@ -16,19 +16,31 @@ import { useTasks } from "@/hooks/use-tasks"
 import { useCategories } from "@/hooks/use-categories"
 import { useStats } from "@/hooks/use-stats"
 import { useNotifications } from "@/hooks/use-notifications"
-import type { Task, FilterStatus, FilterPriority, SortBy, SortOrder } from "@/lib/types"
+import { usePersistentFilters } from "@/hooks/use-persistent-filters"
+import type { Task, SortBy, SortOrder } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 export function Dashboard() {
   const { user, logout } = useAuth()
 
-  // Filters
-  const [statusFilter, setStatusFilter] = useState<FilterStatus>("ALL")
-  const [priorityFilter, setPriorityFilter] = useState<FilterPriority>("ALL")
-  const [categoryId, setCategoryId] = useState<string | null>(null)
+  // Persistent filters
+  const {
+    statusFilter,
+    priorityFilter,
+    categoryId,
+    sortBy,
+    sortOrder,
+    hideCompleted,
+    isLoaded,
+    setStatusFilter,
+    setPriorityFilter,
+    setCategoryId,
+    setSort,
+    setHideCompleted,
+  } = usePersistentFilters()
+
+  // Search (not persisted)
   const [search, setSearch] = useState("")
-  const [sortBy, setSortBy] = useState<SortBy>("position")
-  const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState("")
@@ -39,7 +51,7 @@ export function Dashboard() {
 
   // Data hooks
   const {
-    tasks,
+    tasks: rawTasks,
     setTasks,
     loading: tasksLoading,
     createTask,
@@ -58,6 +70,14 @@ export function Dashboard() {
   })
   const { categories, createCategory, deleteCategory, fetchCategories } = useCategories()
   const { stats, fetchStats } = useStats()
+
+  // Filter out completed tasks if hideCompleted is enabled
+  const tasks = useMemo(() => {
+    if (hideCompleted) {
+      return rawTasks.filter((t) => t.status !== "DONE")
+    }
+    return rawTasks
+  }, [rawTasks, hideCompleted])
 
   // Notifications
   useNotifications(true)
@@ -141,8 +161,7 @@ export function Dashboard() {
   }
 
   const handleSortChange = (newSortBy: SortBy, newSortOrder: SortOrder) => {
-    setSortBy(newSortBy)
-    setSortOrder(newSortOrder)
+    setSort(newSortBy, newSortOrder)
   }
 
   const openEditDialog = (task: Task) => {
@@ -155,7 +174,7 @@ export function Dashboard() {
     setTaskDialogOpen(true)
   }
 
-  if (!user) return null
+  if (!user || !isLoaded) return null
 
   const currentCategory = categories.find((c) => c.id === categoryId)
   const pageTitle = categoryId
@@ -222,6 +241,11 @@ export function Dashboard() {
                 <h1 className="text-2xl font-bold">{pageTitle}</h1>
                 <p className="text-sm text-muted-foreground">
                   {tasks.length} tâche{tasks.length !== 1 ? "s" : ""}
+                  {hideCompleted && rawTasks.length !== tasks.length && (
+                    <span className="ml-1 text-muted-foreground/70">
+                      ({rawTasks.length - tasks.length} masquée{rawTasks.length - tasks.length !== 1 ? "s" : ""})
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -246,6 +270,8 @@ export function Dashboard() {
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
+            hideCompleted={hideCompleted}
+            onHideCompletedChange={setHideCompleted}
           />
 
           {/* Quick add */}

@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, SlidersHorizontal, ArrowUpDown } from "lucide-react"
+import { Search, ArrowUpDown, EyeOff, Eye } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
@@ -12,6 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import type { FilterPriority, SortBy, SortOrder } from "@/lib/types"
 
 interface SearchAndFiltersProps {
@@ -22,6 +24,8 @@ interface SearchAndFiltersProps {
   sortBy: SortBy
   sortOrder: SortOrder
   onSortChange: (sortBy: SortBy, sortOrder: SortOrder) => void
+  hideCompleted?: boolean
+  onHideCompletedChange?: (value: boolean) => void
 }
 
 export function SearchAndFilters({
@@ -32,11 +36,13 @@ export function SearchAndFilters({
   sortBy,
   sortOrder,
   onSortChange,
+  hideCompleted = false,
+  onHideCompletedChange,
 }: SearchAndFiltersProps) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3">
       {/* Search */}
-      <div className="relative flex-1 max-w-sm">
+      <div className="relative flex-1 min-w-[200px] max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           value={search}
@@ -58,6 +64,21 @@ export function SearchAndFilters({
         <option value="MEDIUM">Moyenne</option>
         <option value="LOW">Basse</option>
       </Select>
+
+      {/* Hide completed toggle */}
+      {onHideCompletedChange && (
+        <div className="flex items-center gap-2">
+          <Switch
+            id="hide-completed"
+            checked={hideCompleted}
+            onCheckedChange={onHideCompletedChange}
+          />
+          <Label htmlFor="hide-completed" className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1.5">
+            {hideCompleted ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">Masquer terminées</span>
+          </Label>
+        </div>
+      )}
 
       {/* Sort */}
       <DropdownMenu>
