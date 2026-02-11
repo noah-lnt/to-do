@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     const tasks = await prisma.task.findMany({
       where,
-      include: { category: true },
+      include: { category: true, group: true, assignee: true },
       orderBy: { [sortBy]: sortOrder },
     })
 
@@ -76,10 +76,13 @@ export async function POST(request: NextRequest) {
         recurrenceType: data.recurrenceType || null,
         recurrenceInterval: data.recurrenceInterval || null,
         recurrenceEndDate: data.recurrenceEndDate ? new Date(data.recurrenceEndDate) : null,
+        recurrenceDays: data.recurrenceDays || [],
+        groupId: data.groupId || null,
+        assigneeId: data.assigneeId || null,
         notifyOnComplete: data.notifyOnComplete || false,
         notifyEmail: data.notifyEmail || null,
       },
-      include: { category: true },
+      include: { category: true, group: true, assignee: true },
     })
 
     // Auto-save notify email to user preferences if new
@@ -102,6 +105,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+    }
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json({ error: "Données invalides" }, { status: 400 })
     }
     console.error("Create task error:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })

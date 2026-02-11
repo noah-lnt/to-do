@@ -42,6 +42,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave, saved
   const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>("DAILY")
   const [recurrenceInterval, setRecurrenceInterval] = useState(1)
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("")
+  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([])
 
   // Notification fields
   const [notifyOnComplete, setNotifyOnComplete] = useState(false)
@@ -61,6 +62,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave, saved
       setRecurrencePattern(task.recurrenceType || "DAILY")
       setRecurrenceInterval(task.recurrenceInterval || 1)
       setRecurrenceEndDate(task.recurrenceEndDate ? task.recurrenceEndDate.split("T")[0] : "")
+      setRecurrenceDays(task.recurrenceDays || [])
       setNotifyOnComplete(task.notifyOnComplete || false)
       setNotifyEmail(task.notifyEmail || "")
     } else {
@@ -74,6 +76,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave, saved
       setRecurrencePattern("DAILY")
       setRecurrenceInterval(1)
       setRecurrenceEndDate("")
+      setRecurrenceDays([])
       setNotifyOnComplete(false)
       setNotifyEmail("")
     }
@@ -95,6 +98,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave, saved
         recurrenceType: hasRecurrence ? recurrencePattern : null,
         recurrenceInterval: hasRecurrence ? recurrenceInterval : null,
         recurrenceEndDate: hasRecurrence && recurrenceEndDate ? recurrenceEndDate : null,
+        recurrenceDays: hasRecurrence ? recurrenceDays : [],
         notifyOnComplete,
         notifyEmail: notifyOnComplete && notifyEmail.trim() ? notifyEmail.trim() : null,
       })

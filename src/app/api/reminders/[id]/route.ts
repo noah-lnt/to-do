@@ -25,6 +25,7 @@ export async function DELETE(
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
     }
+    console.error("Delete reminder error:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })
   }
 }

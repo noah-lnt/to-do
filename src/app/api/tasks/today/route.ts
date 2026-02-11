@@ -28,7 +28,7 @@ export async function GET() {
           },
         ],
       },
-      include: { category: true },
+      include: { category: true, group: true, assignee: true },
       orderBy: [
         { status: "asc" },
         { priority: "desc" },

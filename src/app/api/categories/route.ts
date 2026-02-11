@@ -47,6 +47,9 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
     }
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json({ error: "Données invalides" }, { status: 400 })
+    }
     console.error("Create category error:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })
   }

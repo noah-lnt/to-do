@@ -34,7 +34,7 @@ export async function GET(
 
     const task = await prisma.task.findFirst({
       where: { id, userId: user.id },
-      include: { category: true },
+      include: { category: true, group: true, assignee: true },
     })
 
     if (!task) {
@@ -80,6 +80,11 @@ export async function PATCH(
     if (data.recurrenceType !== undefined) updateData.recurrenceType = data.recurrenceType
     if (data.recurrenceInterval !== undefined) updateData.recurrenceInterval = data.recurrenceInterval
     if (data.recurrenceEndDate !== undefined) updateData.recurrenceEndDate = data.recurrenceEndDate ? new Date(data.recurrenceEndDate) : null
+    if (data.recurrenceDays !== undefined) updateData.recurrenceDays = data.recurrenceDays || []
+
+    // Group & Assignment fields
+    if (data.groupId !== undefined) updateData.groupId = data.groupId || null
+    if (data.assigneeId !== undefined) updateData.assigneeId = data.assigneeId || null
 
     // Notification fields
     if (data.notifyOnComplete !== undefined) updateData.notifyOnComplete = data.notifyOnComplete
@@ -161,7 +166,7 @@ export async function PATCH(
     const task = await prisma.task.update({
       where: { id },
       data: updateData,
-      include: { category: true },
+      include: { category: true, group: true, assignee: true },
     })
 
     // Send completion notification email if applicable
@@ -188,6 +193,9 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+    }
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json({ error: "Données invalides" }, { status: 400 })
     }
     console.error("Update task error:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })

@@ -27,6 +27,7 @@ export async function GET() {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
     }
+    console.error("Get reminders error:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })
   }
 }
