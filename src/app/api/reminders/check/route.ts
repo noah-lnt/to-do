@@ -22,7 +22,7 @@ export async function GET() {
     // Mark them as sent
     if (dueReminders.length > 0) {
       await prisma.reminder.updateMany({
-        where: { id: { in: dueReminders.map((r) => r.id) } },
+        where: { id: { in: dueReminders.map((r: { id: string }) => r.id) } },
         data: { sent: true, sentAt: new Date() },
       })
     }

@@ -1,23 +1,23 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, useCallback } from "react"
+import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
-import { Sidebar } from "@/components/sidebar"
-import { Loader2 } from "lucide-react"
-import type { Category, FilterStatus } from "@/lib/types"
+import { AppSidebar } from "@/components/app-sidebar"
+import { Loader2, Menu } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useCategories } from "@/hooks/use-categories"
+import { useGroups } from "@/hooks/use-groups"
 
-export default function AppLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading, logout } = useAuth()
   const router = useRouter()
-  const [categories, setCategories] = useState<Category[]>([])
-  const [collapsed, setCollapsed] = useState(false)
-  const [activeFilter, setActiveFilter] = useState<FilterStatus>("ALL")
-  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
+  const pathname = usePathname()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+
+  const { categories, createCategory, deleteCategory } = useCategories()
+  const { groups } = useGroups()
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -25,67 +25,26 @@ export default function AppLayout({
     }
   }, [user, authLoading, router])
 
-  // Load collapsed state from localStorage
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setMobileSidebarOpen(false)
+  }, [pathname])
+
+  // Load sidebar collapsed state from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-collapsed")
     if (saved !== null) {
-      setCollapsed(saved === "true")
+      setSidebarCollapsed(saved === "true")
     }
   }, [])
 
-  // Save collapsed state
-  const handleCollapsedChange = (value: boolean) => {
-    setCollapsed(value)
-    localStorage.setItem("sidebar-collapsed", String(value))
-  }
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res = await fetch("/api/categories")
-      if (res.ok) {
-        const data = await res.json()
-        setCategories(data)
-      }
-    } catch (err) {
-      console.error("Failed to fetch categories:", err)
-    }
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev
+      localStorage.setItem("sidebar-collapsed", String(next))
+      return next
+    })
   }, [])
-
-  useEffect(() => {
-    if (user) fetchCategories()
-  }, [user, fetchCategories])
-
-  const handleCreateCategory = async (data: { name: string; color: string }) => {
-    try {
-      const res = await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      })
-      if (res.ok) {
-        await fetchCategories()
-      }
-    } catch (err) {
-      console.error("Failed to create category:", err)
-    }
-  }
-
-  const handleDeleteCategory = async (id: string) => {
-    try {
-      await fetch(`/api/categories/${id}`, { method: "DELETE" })
-      await fetchCategories()
-      if (activeCategoryId === id) {
-        setActiveCategoryId(null)
-      }
-    } catch (err) {
-      console.error("Failed to delete category:", err)
-    }
-  }
-
-  const handleLogout = async () => {
-    await logout()
-    router.push("/login")
-  }
 
   if (authLoading || !user) {
     return (
@@ -97,20 +56,44 @@ export default function AppLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar
+      {/* Mobile header with menu button */}
+      <div className="fixed top-0 left-0 right-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 lg:hidden">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setMobileSidebarOpen(true)}
+        >
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Ouvrir le menu</span>
+        </Button>
+        <span className="font-semibold">TaskFlow</span>
+      </div>
+
+      {/* Mobile sidebar overlay */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <AppSidebar
         user={user}
         categories={categories}
-        activeFilter={activeFilter}
-        activeCategoryId={activeCategoryId}
-        onFilterChange={setActiveFilter}
-        onCategoryChange={setActiveCategoryId}
-        onCreateCategory={handleCreateCategory}
-        onDeleteCategory={handleDeleteCategory}
-        onLogout={handleLogout}
-        collapsed={collapsed}
-        onCollapsedChange={handleCollapsedChange}
+        groups={groups}
+        collapsed={sidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        onToggleCollapse={handleToggleSidebar}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+        onCreateCategory={createCategory}
+        onDeleteCategory={deleteCategory}
+        onLogout={logout}
+        currentPath={pathname}
       />
-      <main className="flex-1 overflow-auto">
+
+      {/* Main content */}
+      <main className="flex-1 overflow-auto pt-14 lg:pt-0">
         {children}
       </main>
     </div>

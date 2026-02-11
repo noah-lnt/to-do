@@ -1,4 +1,4 @@
-export type RecurrencePattern = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY"
+export type RecurrenceType = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "CUSTOM"
 
 export interface Task {
   id: string
@@ -12,10 +12,18 @@ export interface Task {
   userId: string
   categoryId: string | null
   category: Category | null
-  recurrencePattern: RecurrencePattern | null
+  // Recurrence
+  recurrenceType: RecurrenceType | null
   recurrenceInterval: number | null
   recurrenceEndDate: string | null
+  recurrenceDays: number[]
   parentTaskId: string | null
+  // Group & Assignment
+  groupId: string | null
+  group: Group | null
+  assigneeId: string | null
+  assignee: User | null
+  // Notification
   notifyOnComplete: boolean
   notifyEmail: string | null
   createdAt: string
@@ -37,6 +45,50 @@ export interface User {
   id: string
   email: string
   name: string | null
+  image?: string | null
+}
+
+export type GroupRole = "OWNER" | "ADMIN" | "MEMBER"
+export type InvitationStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED"
+
+export interface Group {
+  id: string
+  name: string
+  description: string | null
+  color: string
+  ownerId: string
+  owner?: User
+  members?: GroupMember[]
+  invitations?: GroupInvitation[]
+  _count?: { members: number; tasks: number }
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GroupMember {
+  id: string
+  groupId: string
+  group?: Group
+  userId: string
+  user?: User
+  role: GroupRole
+  joinedAt: string
+}
+
+export interface GroupInvitation {
+  id: string
+  groupId: string
+  group?: Group
+  email: string
+  token: string
+  status: InvitationStatus
+  senderId: string
+  sender?: User
+  recipientId: string | null
+  recipient?: User | null
+  expiresAt: string
+  createdAt: string
+  respondedAt: string | null
 }
 
 export interface Stats {
@@ -69,8 +121,25 @@ export const STATUS_CONFIG = {
 } as const
 
 export const RECURRENCE_CONFIG = {
-  DAILY: { label: "Quotidien", plural: "jours" },
-  WEEKLY: { label: "Hebdomadaire", plural: "semaines" },
-  MONTHLY: { label: "Mensuel", plural: "mois" },
-  YEARLY: { label: "Annuel", plural: "ans" },
+  DAILY: { label: "Quotidien", description: "Chaque jour", plural: "jours" },
+  WEEKLY: { label: "Hebdomadaire", description: "Chaque semaine", plural: "semaines" },
+  MONTHLY: { label: "Mensuel", description: "Chaque mois", plural: "mois" },
+  YEARLY: { label: "Annuel", description: "Chaque année", plural: "ans" },
+  CUSTOM: { label: "Personnalisé", description: "Configuration personnalisée", plural: "" },
+} as const
+
+export const WEEKDAYS = [
+  { value: 0, label: "Dim", fullLabel: "Dimanche" },
+  { value: 1, label: "Lun", fullLabel: "Lundi" },
+  { value: 2, label: "Mar", fullLabel: "Mardi" },
+  { value: 3, label: "Mer", fullLabel: "Mercredi" },
+  { value: 4, label: "Jeu", fullLabel: "Jeudi" },
+  { value: 5, label: "Ven", fullLabel: "Vendredi" },
+  { value: 6, label: "Sam", fullLabel: "Samedi" },
+] as const
+
+export const GROUP_ROLE_CONFIG = {
+  OWNER: { label: "Propriétaire", color: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300" },
+  ADMIN: { label: "Admin", color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" },
+  MEMBER: { label: "Membre", color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
 } as const
