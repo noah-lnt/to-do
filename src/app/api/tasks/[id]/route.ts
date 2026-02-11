@@ -77,7 +77,7 @@ export async function PATCH(
     if (data.position !== undefined) updateData.position = data.position
 
     // Recurrence fields
-    if (data.recurrencePattern !== undefined) updateData.recurrencePattern = data.recurrencePattern
+    if (data.recurrenceType !== undefined) updateData.recurrenceType = data.recurrenceType
     if (data.recurrenceInterval !== undefined) updateData.recurrenceInterval = data.recurrenceInterval
     if (data.recurrenceEndDate !== undefined) updateData.recurrenceEndDate = data.recurrenceEndDate ? new Date(data.recurrenceEndDate) : null
 
@@ -109,7 +109,7 @@ export async function PATCH(
       if (
         data.status === "DONE" &&
         existingTask.status !== "DONE" &&
-        existingTask.recurrencePattern &&
+        existingTask.recurrenceType &&
         existingTask.dueDate
       ) {
         updateData.completedAt = new Date()
@@ -117,7 +117,7 @@ export async function PATCH(
         // Calculate next due date
         const nextDueDate = calculateNextDueDate(
           existingTask.dueDate,
-          existingTask.recurrencePattern,
+          existingTask.recurrenceType,
           existingTask.recurrenceInterval || 1
         )
 
@@ -143,7 +143,7 @@ export async function PATCH(
               dueDate: nextDueDate,
               categoryId: existingTask.categoryId,
               userId: user.id,
-              recurrencePattern: existingTask.recurrencePattern,
+              recurrenceType: existingTask.recurrenceType,
               recurrenceInterval: existingTask.recurrenceInterval,
               recurrenceEndDate: existingTask.recurrenceEndDate,
               parentTaskId: existingTask.parentTaskId || existingTask.id,

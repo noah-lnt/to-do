@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         categoryId: data.categoryId || null,
         position: (maxPosition._max.position ?? -1) + 1,
         userId: user.id,
-        recurrencePattern: data.recurrencePattern || null,
+        recurrenceType: data.recurrenceType || null,
         recurrenceInterval: data.recurrenceInterval || null,
         recurrenceEndDate: data.recurrenceEndDate ? new Date(data.recurrenceEndDate) : null,
         notifyOnComplete: data.notifyOnComplete || false,

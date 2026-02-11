@@ -57,8 +57,8 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave, saved
       setStatus(task.status)
       setDueDate(task.dueDate ? task.dueDate.split("T")[0] : "")
       setCategoryId(task.categoryId || "")
-      setHasRecurrence(!!task.recurrencePattern)
-      setRecurrencePattern(task.recurrencePattern || "DAILY")
+      setHasRecurrence(!!task.recurrenceType)
+      setRecurrencePattern(task.recurrenceType || "DAILY")
       setRecurrenceInterval(task.recurrenceInterval || 1)
       setRecurrenceEndDate(task.recurrenceEndDate ? task.recurrenceEndDate.split("T")[0] : "")
       setNotifyOnComplete(task.notifyOnComplete || false)
@@ -92,7 +92,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave, saved
         status,
         dueDate: dueDate || null,
         categoryId: categoryId || null,
-        recurrencePattern: hasRecurrence ? recurrencePattern : null,
+        recurrenceType: hasRecurrence ? recurrencePattern : null,
         recurrenceInterval: hasRecurrence ? recurrenceInterval : null,
         recurrenceEndDate: hasRecurrence && recurrenceEndDate ? recurrenceEndDate : null,
         notifyOnComplete,

@@ -1,4 +1,5 @@
 export type RecurrenceType = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "CUSTOM"
+export type RecurrencePattern = RecurrenceType
 
 export interface Task {
   id: string
