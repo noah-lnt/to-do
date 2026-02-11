@@ -147,10 +147,10 @@ function TodayTaskCard({
               {task.category.name}
             </Badge>
           )}
-          {task.recurrencePattern && (
+          {task.recurrenceType && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
               <Repeat className="mr-1 h-3 w-3" />
-              {RECURRENCE_CONFIG[task.recurrencePattern].label}
+              {RECURRENCE_CONFIG[task.recurrenceType].label}
             </Badge>
           )}
           {isOverdue && (
