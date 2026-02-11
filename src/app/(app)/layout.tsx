@@ -33,15 +33,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Load sidebar collapsed state from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-collapsed")
-    if (saved) {
-      setSidebarCollapsed(JSON.parse(saved))
+    if (saved !== null) {
+      setSidebarCollapsed(saved === "true")
     }
   }, [])
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => {
       const next = !prev
-      localStorage.setItem("sidebar-collapsed", JSON.stringify(next))
+      localStorage.setItem("sidebar-collapsed", String(next))
       return next
     })
   }, [])

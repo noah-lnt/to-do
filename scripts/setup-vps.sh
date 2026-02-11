@@ -1,12 +1,12 @@
 #!/bin/bash
 # =============================================================
-# Setup initial d'un VPS Debian pour TaskFlow
+# Setup initial d'un serveur Debian pour TaskFlow
 # A exécuter en root sur un VPS Debian 12 fraîchement installé
 # =============================================================
 set -e
 
 echo "========================================="
-echo " Setup VPS Debian pour TaskFlow"
+echo " Setup serveur Debian pour TaskFlow"
 echo "========================================="
 
 # ---------------------------------------------------------
@@ -55,13 +55,7 @@ ufw default allow outgoing
 ufw allow 22/tcp     # SSH
 ufw allow 80/tcp     # HTTP
 ufw allow 443/tcp    # HTTPS
-# Le port 5432 sera ajouté manuellement pour l'IP du VPS2
 echo "y" | ufw enable
-
-echo ""
-echo "   IMPORTANT: Pour autoriser la réplication PostgreSQL"
-echo "   depuis le VPS2, exécuter :"
-echo "   ufw allow from <IP_VPS2> to any port 5432"
 
 # ---------------------------------------------------------
 # 5. Fail2ban
@@ -84,6 +78,13 @@ JAIL
 systemctl enable fail2ban
 systemctl restart fail2ban
 
+# ---------------------------------------------------------
+# 6. Créer le réseau Docker externe pour Traefik
+# ---------------------------------------------------------
+echo ""
+echo "[Bonus] Création du réseau Docker 'web'..."
+docker network create web 2>/dev/null || echo "Le réseau 'web' existe déjà"
+
 echo ""
 echo "========================================="
 echo " Setup terminé !"
@@ -92,18 +93,21 @@ echo ""
 echo " Docker : $(docker --version)"
 echo " UFW    : actif (22, 80, 443)"
 echo " Fail2ban : actif"
+echo " Réseau Docker 'web' : créé"
 echo ""
 echo " Prochaines étapes :"
+echo ""
 echo " 1. Créer un utilisateur non-root :"
 echo "    adduser deploy && usermod -aG docker deploy"
 echo ""
-echo " 2. Cloner le repo et configurer .env :"
+echo " 2. Déployer Traefik (si pas déjà fait) :"
+echo "    Voir deploy/GUIDE-DEPLOIEMENT.md"
+echo ""
+echo " 3. Cloner le repo et configurer .env :"
 echo "    git clone <repo> /opt/taskflow && cd /opt/taskflow"
-echo "    cp .env.example .env && nano .env"
+echo "    cp deploy/env.prod.example .env && nano .env"
 echo ""
-echo " 3. Sur VPS1 (primary) :"
-echo "    docker compose -f docker-compose.vps1.yml up -d --build"
+echo " 4. Lancer l'application :"
+echo "    docker compose -f docker-compose.prod.yml up -d --build"
 echo ""
-echo " 4. Sur VPS2 (replica) :"
-echo "    docker compose -f docker-compose.vps2.yml up -d"
 echo "========================================="

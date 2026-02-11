@@ -23,6 +23,9 @@ export interface Task {
   group: Group | null
   assigneeId: string | null
   assignee: User | null
+  // Notification
+  notifyOnComplete: boolean
+  notifyEmail: string | null
   createdAt: string
   updatedAt: string
 }
@@ -118,11 +121,11 @@ export const STATUS_CONFIG = {
 } as const
 
 export const RECURRENCE_CONFIG = {
-  DAILY: { label: "Quotidien", description: "Chaque jour" },
-  WEEKLY: { label: "Hebdomadaire", description: "Chaque semaine" },
-  MONTHLY: { label: "Mensuel", description: "Chaque mois" },
-  YEARLY: { label: "Annuel", description: "Chaque année" },
-  CUSTOM: { label: "Personnalisé", description: "Configuration personnalisée" },
+  DAILY: { label: "Quotidien", description: "Chaque jour", plural: "jours" },
+  WEEKLY: { label: "Hebdomadaire", description: "Chaque semaine", plural: "semaines" },
+  MONTHLY: { label: "Mensuel", description: "Chaque mois", plural: "mois" },
+  YEARLY: { label: "Annuel", description: "Chaque année", plural: "ans" },
+  CUSTOM: { label: "Personnalisé", description: "Configuration personnalisée", plural: "" },
 } as const
 
 export const WEEKDAYS = [

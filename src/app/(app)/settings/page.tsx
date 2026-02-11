@@ -55,6 +55,7 @@ interface Preferences {
   emailNotifications: boolean
   timezone: string
   language: string
+  savedNotifyEmails: string[]
 }
 
 export default function SettingsPage() {
@@ -249,6 +250,12 @@ export default function SettingsPage() {
     if (!preferences) return
     const updated = preferences.recapTimes.filter((t) => t !== time)
     handleUpdatePreferences({ recapTimes: updated })
+  }
+
+  const removeNotifyEmail = (email: string) => {
+    if (!preferences) return
+    const updated = preferences.savedNotifyEmails.filter((e) => e !== email)
+    handleUpdatePreferences({ savedNotifyEmails: updated })
   }
 
   if (loading) {
@@ -595,6 +602,49 @@ export default function SettingsPage() {
                   />
                 </div>
               </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Notification Contacts */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              <CardTitle>Contacts de notification</CardTitle>
+            </div>
+            <CardDescription>
+              Gérez les adresses email utilisées pour notifier quelqu&apos;un à la complétion d&apos;une tâche
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {(!preferences?.savedNotifyEmails || preferences.savedNotifyEmails.length === 0) ? (
+              <p className="text-sm text-muted-foreground">
+                Aucun contact sauvegardé. Les emails seront ajoutés automatiquement
+                lorsque vous notifierez quelqu&apos;un lors de la création d&apos;une tâche.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {preferences.savedNotifyEmails.map((email) => (
+                  <div
+                    key={email}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{email}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeNotifyEmail(email)}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>

@@ -212,3 +212,49 @@ export async function sendReminderEmail(
     `,
   })
 }
+
+export async function sendTaskCompletionNotification(
+  recipientEmail: string,
+  taskTitle: string,
+  completedBy: string,
+  completedAt: Date
+) {
+  const formattedDate = completedAt.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+
+  await transporter.sendMail({
+    from: FROM,
+    to: recipientEmail,
+    subject: `✅ Tâche effectuée : ${taskTitle}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+        <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <span style="font-size: 48px;">✅</span>
+          </div>
+          <h1 style="color: #111; font-size: 24px; margin-bottom: 16px; text-align: center;">Tâche terminée</h1>
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h2 style="color: #166534; font-size: 18px; margin: 0 0 12px;">${taskTitle}</h2>
+            <p style="color: #15803d; font-size: 14px; margin: 0;">
+              <strong>${completedBy}</strong> a terminé cette tâche le ${formattedDate}
+            </p>
+          </div>
+          <p style="color: #555; font-size: 14px; line-height: 1.6; text-align: center;">
+            Vous recevez cet email car vous avez été désigné comme destinataire de notification pour cette tâche.
+          </p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+          <p style="color: #bbb; font-size: 12px; text-align: center;">Envoyé via TaskFlow</p>
+        </div>
+      </body>
+      </html>
+    `,
+  })
+}

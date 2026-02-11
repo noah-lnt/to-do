@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/components/auth-provider"
 import {
   format,
   startOfMonth,
@@ -24,7 +23,6 @@ import {
   Circle,
   Clock,
 } from "lucide-react"
-import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -63,14 +61,6 @@ function DayCell({
   const percentage = stat && stat.total > 0 ? Math.round((stat.done / stat.total) * 100) : 0
   const hasTasks = stat && stat.total > 0
 
-  const getIndicatorColor = () => {
-    if (!hasTasks) return ""
-    if (percentage === 100) return "bg-green-500"
-    if (percentage >= 50) return "bg-amber-500"
-    if (stat && stat.hasUrgent) return "bg-red-500"
-    return "bg-blue-500"
-  }
-
   return (
     <button
       onClick={() => onClick(date)}
@@ -92,7 +82,6 @@ function DayCell({
 
       {hasTasks && inMonth && (
         <>
-          {/* Mini progress bar */}
           <div className="w-full h-1.5 rounded-full bg-muted mt-0.5">
             <div
               className={cn(
@@ -102,15 +91,11 @@ function DayCell({
               style={{ width: `${percentage}%` }}
             />
           </div>
-
-          {/* Stats */}
           <div className="flex items-center gap-1 mt-0.5">
             <span className="text-[10px] text-muted-foreground">
               {stat!.done}/{stat!.total}
             </span>
           </div>
-
-          {/* Indicator dots */}
           <div className="flex gap-0.5 mt-auto">
             {stat!.hasUrgent && (
               <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
@@ -125,7 +110,6 @@ function DayCell({
         </>
       )}
 
-      {/* Completed tasks indicator (tasks completed on this day) */}
       {completedCount && completedCount > 0 && !hasTasks && inMonth && (
         <div className="flex items-center gap-0.5 mt-1">
           <CheckCircle2 className="h-3 w-3 text-green-500" />
@@ -137,7 +121,6 @@ function DayCell({
 }
 
 export default function CalendarPage() {
-  const { user } = useAuth()
   const router = useRouter()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null)
@@ -163,8 +146,8 @@ export default function CalendarPage() {
   }, [currentMonth])
 
   useEffect(() => {
-    if (user) fetchCalendar()
-  }, [user, fetchCalendar])
+    fetchCalendar()
+  }, [fetchCalendar])
 
   const fetchDayTasks = async (date: Date) => {
     try {
@@ -192,12 +175,7 @@ export default function CalendarPage() {
 
   const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1))
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1))
-  const handleToday = () => {
-    setCurrentMonth(new Date())
-    setSelectedDate(null)
-  }
 
-  // Build calendar grid
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
   const calendarStart = startOfWeek(monthStart, { locale: fr })
@@ -212,7 +190,6 @@ export default function CalendarPage() {
 
   const weekDays = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
 
-  // Month-level stats
   const monthStats = calendarData
     ? Object.values(calendarData.dailyStats).reduce(
         (acc, s) => ({
@@ -230,161 +207,151 @@ export default function CalendarPage() {
     : 0
 
   return (
-    <div className="mx-auto max-w-4xl p-4 md:p-6 lg:p-8 space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Calendrier</h1>
-          <p className="text-sm text-muted-foreground">Vue mensuelle de vos taches</p>
-        </div>
-        <Link href="/today">
-          <Button variant="outline" size="sm">
-            Aujourd'hui
-          </Button>
-        </Link>
+      <div>
+        <h1 className="text-2xl font-bold">Calendrier</h1>
+        <p className="text-sm text-muted-foreground">Vue mensuelle de vos tâches</p>
       </div>
 
-        {/* Month navigation */}
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" size="icon" onClick={handlePrevMonth}>
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-              <div className="text-center">
-                <CardTitle className="capitalize">
-                  {format(currentMonth, "MMMM yyyy", { locale: fr })}
-                </CardTitle>
-                {!loading && monthStats.total > 0 && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {monthStats.done}/{monthStats.total} tâches terminées ({monthPercentage}%)
-                  </p>
-                )}
+      {/* Month navigation */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" size="icon" onClick={handlePrevMonth}>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <div className="text-center">
+              <CardTitle className="capitalize">
+                {format(currentMonth, "MMMM yyyy", { locale: fr })}
+              </CardTitle>
+              {!loading && monthStats.total > 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {monthStats.done}/{monthStats.total} tâches terminées ({monthPercentage}%)
+                </p>
+              )}
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleNextMonth}>
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-7 mb-1">
+                {weekDays.map((wd) => (
+                  <div
+                    key={wd}
+                    className="text-center text-xs font-medium text-muted-foreground py-2"
+                  >
+                    {wd}
+                  </div>
+                ))}
               </div>
-              <Button variant="ghost" size="icon" onClick={handleNextMonth}>
-                <ChevronRight className="h-5 w-5" />
+
+              <div className="grid grid-cols-7 gap-0.5">
+                {days.map((d) => {
+                  const dateKey = format(d, "yyyy-MM-dd")
+                  return (
+                    <DayCell
+                      key={dateKey}
+                      date={d}
+                      currentMonth={currentMonth}
+                      stat={calendarData?.dailyStats[dateKey]}
+                      completedCount={calendarData?.completedByDay[dateKey]}
+                      onClick={handleDayClick}
+                    />
+                  )
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-green-500" />
+                  100% terminé
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  En cours
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  Urgent
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  &gt; 50%
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Selected day detail */}
+      {selectedDate && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg capitalize">
+                {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedDate(null)}>
+                Fermer
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            {selectedLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
+            ) : selectedTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Aucune tâche prévue pour ce jour
+              </p>
             ) : (
-              <>
-                {/* Week day headers */}
-                <div className="grid grid-cols-7 mb-1">
-                  {weekDays.map((wd) => (
-                    <div
-                      key={wd}
-                      className="text-center text-xs font-medium text-muted-foreground py-2"
+              <div className="space-y-2">
+                {selectedTasks.map((task: any) => (
+                  <div
+                    key={task.id}
+                    className={cn(
+                      "flex items-center gap-3 p-3 rounded-lg border",
+                      task.status === "DONE" && "opacity-60"
+                    )}
+                  >
+                    {task.status === "DONE" ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    ) : task.status === "IN_PROGRESS" ? (
+                      <Clock className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                    ) : (
+                      <Circle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <span
+                      className={cn(
+                        "flex-1 text-sm",
+                        task.status === "DONE" && "line-through text-muted-foreground"
+                      )}
                     >
-                      {wd}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Calendar grid */}
-                <div className="grid grid-cols-7 gap-0.5">
-                  {days.map((d) => {
-                    const dateKey = format(d, "yyyy-MM-dd")
-                    return (
-                      <DayCell
-                        key={dateKey}
-                        date={d}
-                        currentMonth={currentMonth}
-                        stat={calendarData?.dailyStats[dateKey]}
-                        completedCount={calendarData?.completedByDay[dateKey]}
-                        onClick={handleDayClick}
-                      />
-                    )
-                  })}
-                </div>
-
-                {/* Legend */}
-                <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-green-500" />
-                    100% terminé
+                      {task.title}
+                    </span>
+                    {task.priority === "URGENT" && (
+                      <Badge variant="secondary" className="text-[10px] bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                        Urgent
+                      </Badge>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-blue-500" />
-                    En cours
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-red-500" />
-                    Urgent
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-amber-500" />
-                    &gt; 50%
-                  </div>
-                </div>
-              </>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
-
-        {/* Selected day detail */}
-        {selectedDate && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg capitalize">
-                  {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
-                </CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedDate(null)}>
-                  Fermer
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {selectedLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : selectedTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Aucune tâche prévue pour ce jour
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {selectedTasks.map((task: any) => (
-                    <div
-                      key={task.id}
-                      className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg border",
-                        task.status === "DONE" && "opacity-60"
-                      )}
-                    >
-                      {task.status === "DONE" ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                      ) : task.status === "IN_PROGRESS" ? (
-                        <Clock className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                      ) : (
-                        <Circle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      )}
-                      <span
-                        className={cn(
-                          "flex-1 text-sm",
-                          task.status === "DONE" && "line-through text-muted-foreground"
-                        )}
-                      >
-                        {task.title}
-                      </span>
-                      {task.priority === "URGENT" && (
-                        <Badge variant="secondary" className="text-[10px] bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
-                          Urgent
-                        </Badge>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+      )}
     </div>
   )
 }

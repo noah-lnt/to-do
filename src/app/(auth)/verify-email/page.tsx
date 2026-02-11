@@ -4,21 +4,23 @@ import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { buttonVariants } from "@/components/ui/button"
 import { CheckSquare, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
 
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
-  const [message, setMessage] = useState("")
+  const [status, setStatus] = useState<"loading" | "success" | "error">(() =>
+    token ? "loading" : "error"
+  )
+  const [message, setMessage] = useState(() =>
+    token ? "" : "Lien de vérification invalide."
+  )
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error")
-      setMessage("Lien de vérification invalide.")
-      return
-    }
+    if (!token) return
 
     const verify = async () => {
       try {
@@ -63,10 +65,7 @@ function VerifyEmailContent() {
               <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
             <p className="text-sm text-muted-foreground">{message}</p>
-            <Link
-              href="/"
-              className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
-            >
+            <Link href="/" className={cn(buttonVariants(), "w-full")}>
               Accéder à TaskFlow
             </Link>
           </>
@@ -78,10 +77,7 @@ function VerifyEmailContent() {
               <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
             </div>
             <p className="text-sm text-destructive">{message}</p>
-            <Link
-              href="/login"
-              className="inline-flex w-full items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
-            >
+            <Link href="/login" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
               Retour à la connexion
             </Link>
           </>

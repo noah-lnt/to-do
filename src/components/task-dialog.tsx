@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { Repeat, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -14,8 +16,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { RecurrenceSelector } from "@/components/recurrence-selector"
-import type { Task, Category, RecurrenceType } from "@/lib/types"
+import type { Task, Category, RecurrencePattern } from "@/lib/types"
+import { RECURRENCE_CONFIG } from "@/lib/types"
 
 interface TaskDialogProps {
   open: boolean
@@ -23,9 +25,10 @@ interface TaskDialogProps {
   task?: Task | null
   categories: Category[]
   onSave: (data: Partial<Task>) => Promise<void>
+  savedNotifyEmails?: string[]
 }
 
-export function TaskDialog({ open, onOpenChange, task, categories, onSave }: TaskDialogProps) {
+export function TaskDialog({ open, onOpenChange, task, categories, onSave, savedNotifyEmails = [] }: TaskDialogProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState<Task["priority"]>("MEDIUM")
@@ -33,11 +36,16 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
   const [dueDate, setDueDate] = useState("")
   const [categoryId, setCategoryId] = useState("")
   const [loading, setLoading] = useState(false)
-  // Recurrence state
-  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType | null>(null)
+
+  // Recurrence fields
+  const [hasRecurrence, setHasRecurrence] = useState(false)
+  const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>("DAILY")
   const [recurrenceInterval, setRecurrenceInterval] = useState(1)
-  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([])
-  const [recurrenceEndDate, setRecurrenceEndDate] = useState<string | null>(null)
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("")
+
+  // Notification fields
+  const [notifyOnComplete, setNotifyOnComplete] = useState(false)
+  const [notifyEmail, setNotifyEmail] = useState("")
 
   const isEditing = !!task
 
@@ -49,10 +57,12 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
       setStatus(task.status)
       setDueDate(task.dueDate ? task.dueDate.split("T")[0] : "")
       setCategoryId(task.categoryId || "")
-      setRecurrenceType(task.recurrenceType || null)
+      setHasRecurrence(!!task.recurrencePattern)
+      setRecurrencePattern(task.recurrencePattern || "DAILY")
       setRecurrenceInterval(task.recurrenceInterval || 1)
-      setRecurrenceDays(task.recurrenceDays || [])
-      setRecurrenceEndDate(task.recurrenceEndDate ? task.recurrenceEndDate.split("T")[0] : null)
+      setRecurrenceEndDate(task.recurrenceEndDate ? task.recurrenceEndDate.split("T")[0] : "")
+      setNotifyOnComplete(task.notifyOnComplete || false)
+      setNotifyEmail(task.notifyEmail || "")
     } else {
       setTitle("")
       setDescription("")
@@ -60,10 +70,12 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
       setStatus("TODO")
       setDueDate("")
       setCategoryId("")
-      setRecurrenceType(null)
+      setHasRecurrence(false)
+      setRecurrencePattern("DAILY")
       setRecurrenceInterval(1)
-      setRecurrenceDays([])
-      setRecurrenceEndDate(null)
+      setRecurrenceEndDate("")
+      setNotifyOnComplete(false)
+      setNotifyEmail("")
     }
   }, [task, open])
 
@@ -80,10 +92,11 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
         status,
         dueDate: dueDate || null,
         categoryId: categoryId || null,
-        recurrenceType,
-        recurrenceInterval,
-        recurrenceDays,
-        recurrenceEndDate,
+        recurrencePattern: hasRecurrence ? recurrencePattern : null,
+        recurrenceInterval: hasRecurrence ? recurrenceInterval : null,
+        recurrenceEndDate: hasRecurrence && recurrenceEndDate ? recurrenceEndDate : null,
+        notifyOnComplete,
+        notifyEmail: notifyOnComplete && notifyEmail.trim() ? notifyEmail.trim() : null,
       })
       onOpenChange(false)
     } catch (err) {
@@ -93,21 +106,18 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
     }
   }
 
-  const handleRecurrenceChange = (data: {
-    recurrenceType: RecurrenceType | null
-    recurrenceInterval: number
-    recurrenceDays: number[]
-    recurrenceEndDate: string | null
-  }) => {
-    setRecurrenceType(data.recurrenceType)
-    setRecurrenceInterval(data.recurrenceInterval)
-    setRecurrenceDays(data.recurrenceDays)
-    setRecurrenceEndDate(data.recurrenceEndDate)
+  const getRecurrenceLabel = () => {
+    if (!hasRecurrence) return ""
+    const config = RECURRENCE_CONFIG[recurrencePattern]
+    if (recurrenceInterval === 1) {
+      return config.label
+    }
+    return `Tous les ${recurrenceInterval} ${config.plural}`
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Modifier la tâche" : "Nouvelle tâche"}</DialogTitle>
           <DialogDescription>
@@ -139,7 +149,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="priority">Priorité</Label>
               <Select
@@ -166,7 +176,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="dueDate">Date d&apos;échéance</Label>
               <Input
@@ -178,7 +188,7 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Categorie</Label>
+              <Label htmlFor="category">Catégorie</Label>
               <Select
                 value={categoryId}
                 onValueChange={setCategoryId}
@@ -193,13 +203,106 @@ export function TaskDialog({ open, onOpenChange, task, categories, onSave }: Tas
             </div>
           </div>
 
-          <RecurrenceSelector
-            recurrenceType={recurrenceType}
-            recurrenceInterval={recurrenceInterval}
-            recurrenceDays={recurrenceDays}
-            recurrenceEndDate={recurrenceEndDate}
-            onChange={handleRecurrenceChange}
-          />
+          {/* Recurrence Section */}
+          <div className="space-y-3 pt-2 border-t">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="hasRecurrence"
+                checked={hasRecurrence}
+                onCheckedChange={(checked) => setHasRecurrence(checked as boolean)}
+              />
+              <Label htmlFor="hasRecurrence" className="flex items-center gap-2 cursor-pointer">
+                <Repeat className="h-4 w-4" />
+                Tâche récurrente
+              </Label>
+            </div>
+
+            {hasRecurrence && (
+              <div className="space-y-3 pl-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="recurrencePattern">Fréquence</Label>
+                    <Select
+                      value={recurrencePattern}
+                      onValueChange={(v) => setRecurrencePattern(v as RecurrencePattern)}
+                    >
+                      <option value="DAILY">Quotidien</option>
+                      <option value="WEEKLY">Hebdomadaire</option>
+                      <option value="MONTHLY">Mensuel</option>
+                      <option value="YEARLY">Annuel</option>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="recurrenceInterval">Intervalle</Label>
+                    <Input
+                      id="recurrenceInterval"
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={recurrenceInterval}
+                      onChange={(e) => setRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="recurrenceEndDate">Date de fin (optionnel)</Label>
+                  <Input
+                    id="recurrenceEndDate"
+                    type="date"
+                    value={recurrenceEndDate}
+                    onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                    min={dueDate || undefined}
+                  />
+                </div>
+
+                {hasRecurrence && (
+                  <p className="text-xs text-muted-foreground">
+                    {getRecurrenceLabel()}
+                    {recurrenceEndDate && ` jusqu'au ${new Date(recurrenceEndDate).toLocaleDateString("fr-FR")}`}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Notification Section */}
+          <div className="space-y-3 pt-2 border-t">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="notifyOnComplete"
+                checked={notifyOnComplete}
+                onCheckedChange={(checked) => setNotifyOnComplete(checked as boolean)}
+              />
+              <Label htmlFor="notifyOnComplete" className="flex items-center gap-2 cursor-pointer">
+                <Mail className="h-4 w-4" />
+                Notifier quelqu&apos;un à la complétion
+              </Label>
+            </div>
+
+            {notifyOnComplete && (
+              <div className="space-y-2 pl-6">
+                <Label htmlFor="notifyEmail">Email du destinataire</Label>
+                <Input
+                  id="notifyEmail"
+                  type="email"
+                  list="saved-notify-emails"
+                  value={notifyEmail}
+                  onChange={(e) => setNotifyEmail(e.target.value)}
+                  placeholder="Sélectionner ou saisir un email"
+                />
+                <datalist id="saved-notify-emails">
+                  {savedNotifyEmails.map((email) => (
+                    <option key={email} value={email} />
+                  ))}
+                </datalist>
+                <p className="text-xs text-muted-foreground">
+                  Cette personne recevra un email lorsque la tâche sera terminée.
+                </p>
+              </div>
+            )}
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
