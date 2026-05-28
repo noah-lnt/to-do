@@ -1,3 +1,7 @@
+> ⚠️ **Development moved to a private repo.** This v1 is kept as-is for reference.
+> The v2 (AI brain dump, weekly planning, Gmail/IMAP sync, MCP server, multi-channel capture)
+> is being developed privately at **noah-lnt/taskflow**.
+
 # TaskFlow - Gestionnaire de tâches
 
 Application de gestion de tâches moderne et productive construite avec Next.js, PostgreSQL, shadcn/ui, et déployable avec Docker + Traefik.
